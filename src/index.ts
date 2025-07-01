@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { loadConfig, loadWikiJsConfig } from './config';
 import { ConfluenceClient } from './confluence-client';
 import { MarkdownConverter } from './markdown-converter';
+import { WikiJsClient } from './wikijs-client';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -721,17 +722,11 @@ program
                     uploadedAssets.push(uploadedAsset);
                     
                     // Replace the image reference in markdown
-                    // Wiki.js typically serves assets from /_assets/ path, not uploads path
-                    let newImageUrl: string;
-                    
-                    if (uploadedAsset.hash) {
-                      // Use hash-based URL if available (more reliable)
-                      newImageUrl = `${wikiJsConfig.baseUrl}/_assets/${uploadedAsset.hash}.${uploadedAsset.ext}`;
-                    } else {
-                      // Fallback to filename-based URL
-                      const assetPath = '/_assets'; // Wiki.js standard asset path
-                      newImageUrl = `${wikiJsConfig.baseUrl}${assetPath}/${uploadedAsset.filename}`;
-                    }
+                    // Use the WikiJsClient utility to construct the correct URL
+                    // Use the configured upload path from .env (removing leading slash)
+                    const folderName = (wikiJsConfig.uploadPath || '/uploads').replace(/^\//, '');
+                    console.log(`    🔗 Using folder path for URL: "${folderName}" (from uploadPath: "${wikiJsConfig.uploadPath}")`);
+                    const newImageUrl = WikiJsClient.getAssetUrl(wikiJsConfig.baseUrl, uploadedAsset, folderName);
                     
                     wikiJsMarkdown = wikiJsMarkdown.replace(fullMatch, `![${alt}](${newImageUrl})`);
                     

@@ -74,7 +74,7 @@ export class WikiJsClient {
 
       console.log('Upload response:', response.data);
       
-      // Handle the response - Wiki.js typically returns the uploaded asset info
+      // Handle the response - Wiki.js returns upload info
       if (response.data && response.data.succeeded !== false) {
         const asset: WikiJsAsset = {
           id: response.data.id || 0,
@@ -84,7 +84,7 @@ export class WikiJsClient {
           kind: response.data.kind || 'image',
           mime: response.data.mime || mimeType,
           fileSize: response.data.fileSize || fileBuffer.length,
-          metadata: response.data.metadata || {},
+          metadata: response.data.metadata || { folderId: targetFolder.id, folderName: targetFolder.name },
           createdAt: response.data.createdAt || new Date().toISOString(),
           updatedAt: response.data.updatedAt || new Date().toISOString(),
         };
@@ -443,5 +443,30 @@ export class WikiJsClient {
     return path;
   }
 
+  /**
+   * Construct the correct asset URL for Wiki.js
+   */
+  static getAssetUrl(baseUrl: string, asset: WikiJsAsset, folderName?: string): string {
+    // Remove trailing slash from baseUrl
+    const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+    
+    if (asset.hash) {
+      // Use hash-based URL (preferred method)
+      return `${cleanBaseUrl}/_assets/${asset.hash}.${asset.ext}`;
+    } else {
+      // Use folder-based URL
+      // Get folder name from asset metadata, parameter, or default to 'uploads'
+      const folder = folderName || 
+                    asset.metadata?.folderName || 
+                    (asset.metadata?.folderId === 0 ? '' : 'uploads'); // Root folder has no path
+      
+      if (folder) {
+        return `${cleanBaseUrl}/_assets/${folder}/${asset.filename}`;
+      } else {
+        // Root folder - no folder path needed
+        return `${cleanBaseUrl}/_assets/${asset.filename}`;
+      }
+    }
+  }
 
 }
