@@ -27,14 +27,14 @@ export class WikiJsClient {
 
     try {
       // First, get available folders to find the target folder ID
-      const folders = await this.getAssetFolders();
-      console.log('Available asset folders:', folders.map(f => `${f.name} (id: ${f.id}, path: ${f.path})`));
+      const folders = await this.getAssetFolders(0); // Start with root folders (parentFolderId = 0)
+      console.log('Available asset folders:', folders.map(f => `${f.name} (id: ${f.id}, slug: ${f.slug})`));
       
-      // Find the uploads folder or root folder
-      let targetFolder = folders.find(f => f.path === targetPath || f.slug === 'uploads' || f.name === 'uploads');
+      // Find the uploads folder or use root folder
+      let targetFolder = folders.find(f => f.slug === 'uploads' || f.name.toLowerCase() === 'uploads');
       if (!targetFolder) {
         // Use root folder (ID 0) as fallback
-        targetFolder = folders.find(f => f.path === '/' || f.id === 0) || { id: 0, name: 'root', path: '/' };
+        targetFolder = { id: 0, name: 'root', slug: 'root' };
       }
       
       console.log(`Using folder: ${targetFolder.name} (id: ${targetFolder.id})`);
@@ -290,15 +290,14 @@ export class WikiJsClient {
   /**
    * Get available asset folders from Wiki.js
    */
-  async getAssetFolders(): Promise<any[]> {
+  async getAssetFolders(parentFolderId: number = 0): Promise<any[]> {
     const query = `
-      query {
+      query listAssetFolders($parentFolderId: Int!) {
         assets {
-          folders {
+          folders(parentFolderId: $parentFolderId) {
             id
             name
             slug
-            path
           }
         }
       }
@@ -307,6 +306,7 @@ export class WikiJsClient {
     try {
       const response = await this.client.post('', {
         query,
+        variables: { parentFolderId },
       });
 
       if (response.data.errors) {
@@ -341,38 +341,5 @@ export class WikiJsClient {
     return path;
   }
 
-  /**
-   * Alternative method: Convert image to base64 data URL for embedding
-   */
-  async convertImageToDataUrl(filePath: string): Promise<string> {
-    try {
-      const fileBuffer = await fs.readFile(filePath);
-      const ext = path.extname(filePath).toLowerCase();
-      
-      let mimeType = 'image/png'; // default
-      switch (ext) {
-        case '.jpg':
-        case '.jpeg':
-          mimeType = 'image/jpeg';
-          break;
-        case '.png':
-          mimeType = 'image/png';
-          break;
-        case '.gif':
-          mimeType = 'image/gif';
-          break;
-        case '.svg':
-          mimeType = 'image/svg+xml';
-          break;
-        case '.webp':
-          mimeType = 'image/webp';
-          break;
-      }
-      
-      const base64Data = fileBuffer.toString('base64');
-      return `data:${mimeType};base64,${base64Data}`;
-    } catch (error) {
-      throw new Error(`Failed to convert image to data URL: ${error}`);
-    }
-  }
+
 }

@@ -726,13 +726,8 @@ program
                     
                     console.log(`    ✅ Uploaded and replaced: ${uploadedAsset.filename}`);
                   } catch (uploadError) {
-                    console.log(`    ⚠️  Upload failed, using base64 embedding instead...`);
-                    
-                    // Fallback: Convert image to base64 data URL
-                    const dataUrl = await wikiJsClient.convertImageToDataUrl(absoluteImagePath);
-                    wikiJsMarkdown = wikiJsMarkdown.replace(fullMatch, `![${alt}](${dataUrl})`);
-                    
-                    console.log(`    ✅ Embedded as base64: ${path.basename(absoluteImagePath)}`);
+                    console.log(`    ❌ Upload failed for ${path.basename(absoluteImagePath)}: ${uploadError}`);
+                    // Keep original local path in markdown as fallback
                   }
                 } catch (error) {
                   console.log(`    ❌ Failed to process image ${absoluteImagePath}: ${error}`);
