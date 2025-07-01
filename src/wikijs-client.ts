@@ -76,14 +76,14 @@ export class WikiJsClient {
       
       // Handle the response - Wiki.js returns upload info
       if (response.data && response.data.succeeded !== false) {
-        // Use the actual filename returned from Wiki.js (may be different from original due to case/sanitization)
-        const actualFilename = response.data.filename || response.data.name || fileName;
+        // Always use lowercase filename to match Wiki.js behavior
+        const normalizedFilename = fileName.toLowerCase();
         
         const asset: WikiJsAsset = {
           id: response.data.id || 0,
-          filename: actualFilename, // Use the server-returned filename
+          filename: normalizedFilename, // Always use lowercase
           hash: response.data.hash || '',
-          ext: response.data.ext || path.extname(actualFilename).substring(1),
+          ext: response.data.ext || path.extname(normalizedFilename).substring(1),
           kind: response.data.kind || 'image',
           mime: response.data.mime || mimeType,
           fileSize: response.data.fileSize || fileBuffer.length,
@@ -92,7 +92,7 @@ export class WikiJsClient {
           updatedAt: response.data.updatedAt || new Date().toISOString(),
         };
         
-        console.log(`Successfully uploaded asset: ${fileName} -> ${actualFilename}`, asset);
+        console.log(`Successfully uploaded asset: ${fileName} -> ${normalizedFilename}`, asset);
         return asset;
       } else {
         throw new Error(response.data?.message || 'Upload failed with unknown error');
