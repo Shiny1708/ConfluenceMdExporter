@@ -62,7 +62,7 @@ export class MarkdownConverter {
           return `<pre><code class="language-${language}">${this.escapeHtml(codeContent)}</code></pre>`;
         } else {
           console.log('Debug: No code content found, returning comment');
-          return `<!-- Confluence ${macroName} macro (content not extracted) -->`;
+          return `<!-- Confluence ${macroName} macro (content not extracted) -->\n`;
         }
       }
     );
@@ -99,12 +99,12 @@ export class MarkdownConverter {
           
           console.log(`Debug: Converted to img tag: ${imgTag}`);
           console.log(`Debug: Encoded filename "${filename}" -> "${encodedFilename}"`);
-          return imgTag;
+          return `\n${imgTag}\n`;
         }
         
         // If we can't extract the attachment, return a comment
         console.log('Debug: Could not extract attachment filename');
-        return `<!-- Confluence Image (could not extract attachment) -->`;
+        return `<!-- Confluence Image (could not extract attachment) -->\n`;
       }
     );
     
@@ -369,7 +369,7 @@ export class MarkdownConverter {
         // Check if it's a Confluence attachment
         if (src.includes('/download/attachments/') || src.includes('/download/thumbnails/')) {
           const filename = this.extractFilenameFromConfluenceUrl(src);
-          return `![${alt}](${src}${title})\n<!-- Confluence Attachment: ${filename} -->`;
+          return `\n![${alt}](${src}${title})\n<!-- Confluence Attachment: ${filename} -->\n`;
         }
         
         // Check for Confluence image macro attributes
@@ -377,7 +377,7 @@ export class MarkdownConverter {
         const height = node.getAttribute('height');
         const border = node.getAttribute('border');
         
-        let imageMarkdown = `![${alt}](${src}${title})`;
+        let imageMarkdown = `\n![${alt}](${src}${title})`;
         
         // Add HTML attributes as comment if they exist
         if (width || height || border) {
@@ -385,7 +385,9 @@ export class MarkdownConverter {
           if (width) attrs.push(`width="${width}"`);
           if (height) attrs.push(`height="${height}"`);
           if (border) attrs.push(`border="${border}"`);
-          imageMarkdown += `\n<!-- Image attributes: ${attrs.join(', ')} -->`;
+          imageMarkdown += `\n<!-- Image attributes: ${attrs.join(', ')} -->\n`;
+        } else {
+          imageMarkdown += `\n`;
         }
         
         return imageMarkdown;
