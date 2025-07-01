@@ -721,10 +721,21 @@ program
                     uploadedAssets.push(uploadedAsset);
                     
                     // Replace the image reference in markdown
-                    const newImageUrl = `${wikiJsConfig.baseUrl}${options.uploadPath}/${uploadedAsset.filename}`;
+                    // Wiki.js typically serves assets from /_assets/ path, not uploads path
+                    let newImageUrl: string;
+                    
+                    if (uploadedAsset.hash) {
+                      // Use hash-based URL if available (more reliable)
+                      newImageUrl = `${wikiJsConfig.baseUrl}/_assets/${uploadedAsset.hash}.${uploadedAsset.ext}`;
+                    } else {
+                      // Fallback to filename-based URL
+                      const assetPath = '/_assets'; // Wiki.js standard asset path
+                      newImageUrl = `${wikiJsConfig.baseUrl}${assetPath}/${uploadedAsset.filename}`;
+                    }
+                    
                     wikiJsMarkdown = wikiJsMarkdown.replace(fullMatch, `![${alt}](${newImageUrl})`);
                     
-                    console.log(`    ✅ Uploaded and replaced: ${uploadedAsset.filename}`);
+                    console.log(`    ✅ Uploaded and replaced: ${uploadedAsset.filename} -> ${newImageUrl}`);
                   } catch (uploadError) {
                     console.log(`    ❌ Upload failed for ${path.basename(absoluteImagePath)}: ${uploadError}`);
                     // Keep original local path in markdown as fallback

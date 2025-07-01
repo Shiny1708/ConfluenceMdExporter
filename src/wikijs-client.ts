@@ -46,6 +46,8 @@ export class WikiJsClient {
       
       formData.append('mediaUpload', blob, fileName);
       formData.append('folderId', targetFolder.id.toString());
+      
+      console.log(`Upload details: fileName=${fileName}, fileSize=${fileBuffer.length}, folderId=${targetFolder.id}`);
 
       // Use the Wiki.js upload endpoint
       const uploadClient = axios.create({
@@ -62,7 +64,74 @@ export class WikiJsClient {
       });
 
       console.log('Upload response:', response.data);
-      return response.data;
+      
+      // Handle different possible response formats from Wiki.js
+      let asset: WikiJsAsset;
+      
+      if (response.data && typeof response.data === 'object') {
+        // If response.data is already the asset object
+        if (response.data.filename || response.data.id) {
+          asset = {
+            id: response.data.id || 0,
+            filename: response.data.filename || fileName,
+            hash: response.data.hash || '',
+            ext: response.data.ext || path.extname(fileName).substring(1),
+            kind: response.data.kind || 'image',
+            mime: response.data.mime || 'image/png',
+            fileSize: response.data.fileSize || 0,
+            metadata: response.data.metadata || {},
+            createdAt: response.data.createdAt || new Date().toISOString(),
+            updatedAt: response.data.updatedAt || new Date().toISOString(),
+          };
+        } else {
+          // Create a minimal asset object if response doesn't match expected format
+          asset = {
+            id: 0,
+            filename: fileName,
+            hash: '',
+            ext: path.extname(fileName).substring(1),
+            kind: 'image',
+            mime: 'image/png',
+            fileSize: 0,
+            metadata: {},
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+        }
+      } else {
+        // Fallback: create minimal asset object
+        asset = {
+          id: 0,
+          filename: fileName,
+          hash: '',
+          ext: path.extname(fileName).substring(1),
+          kind: 'image',
+          mime: 'image/png',
+          fileSize: 0,
+          metadata: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      
+      console.log('Processed asset:', asset);
+      
+      // Try to get additional asset information from Wiki.js API
+      try {
+        const assetInfo = await this.getAssetByFilename(asset.filename);
+        if (assetInfo) {
+          console.log('Retrieved asset info from API:', assetInfo);
+          // Update asset with API information
+          asset = {
+            ...asset,
+            ...assetInfo,
+          };
+        }
+      } catch (apiError) {
+        console.log('Failed to retrieve asset info from API, using upload response data');
+      }
+      
+      return asset;
     } catch (error: any) {
       console.log('Upload error details:', {
         status: error.response?.status,
@@ -318,6 +387,53 @@ export class WikiJsClient {
     } catch (error) {
       console.log('Failed to query asset folders:', error);
       return [];
+    }
+  }
+
+  /**
+   * Get asset information by filename
+   */
+  async getAssetByFilename(filename: string): Promise<any | null> {
+    const query = `
+      query getAssets($filename: String!) {
+        assets {
+          list(filename: $filename) {
+            id
+            filename
+            hash
+            ext
+            kind
+            mime
+            fileSize
+            metadata
+            createdAt
+            updatedAt
+            folder {
+              id
+              name
+              slug
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await this.client.post('', {
+        query,
+        variables: { filename },
+      });
+
+      if (response.data.errors) {
+        console.log('Error querying asset:', response.data.errors);
+        return null;
+      }
+
+      const assets = response.data.data.assets.list || [];
+      return assets.length > 0 ? assets[0] : null;
+    } catch (error) {
+      console.log('Failed to query asset:', error);
+      return null;
     }
   }
 
