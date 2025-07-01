@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Confluence Code Macros Test</title>
+</head>
+<body>
+    <h1>Confluence Code Macro Testing</h1>
+    
+    <h2>Standard Code Macro</h2>
+    <ac:structured-macro ac:name="code" ac:schema-version="1">
+        <ac:parameter ac:name="language">javascript</ac:parameter>
+        <ac:plain-text-body><![CDATA[function sayHello(name) {
+    console.log(`Hello, ${name}!`);
+    return true;
+}
+
+sayHello('World');]]></ac:plain-text-body>
+    </ac:structured-macro>
+    
+    <h2>No Format Macro</h2>
+    <ac:structured-macro ac:name="noformat" ac:schema-version="1">
+        <ac:plain-text-body><![CDATA[This is preformatted text
+    with    preserved    spacing
+and line breaks
+
+No syntax highlighting here.]]></ac:plain-text-body>
+    </ac:structured-macro>
+    
+    <h2>Code Macro without Language</h2>
+    <ac:structured-macro ac:name="code" ac:schema-version="1">
+        <ac:plain-text-body><![CDATA[# This is some generic code
+echo "Hello World"
+cat file.txt | grep "pattern"]]></ac:plain-text-body>
+    </ac:structured-macro>
+    
+    <h2>Python Code</h2>
+    <ac:structured-macro ac:name="code" ac:schema-version="1">
+        <ac:parameter ac:name="language">python</ac:parameter>
+        <ac:plain-text-body><![CDATA[def fibonacci(n):
+    if n <= 1:
+        return n
+    else:
+        return fibonacci(n-1) + fibonacci(n-2)
+
+# Calculate the 10th Fibonacci number
+result = fibonacci(10)
+print(f"The 10th Fibonacci number is: {result}")]]></ac:plain-text-body>
+    </ac:structured-macro>
+    
+    <h2>SQL Code</h2>
+    <ac:structured-macro ac:name="code" ac:schema-version="1">
+        <ac:parameter ac:name="language">sql</ac:parameter>
+        <ac:plain-text-body><![CDATA[SELECT 
+    u.id,
+    u.username,
+    u.email,
+    COUNT(p.id) as post_count
+FROM users u
+LEFT JOIN posts p ON u.id = p.user_id
+WHERE u.active = 1
+GROUP BY u.id, u.username, u.email
+HAVING COUNT(p.id) > 5
+ORDER BY post_count DESC;]]></ac:plain-text-body>
+    </ac:structured-macro>
+    
+    <h2>Info Macro</h2>
+    <ac:structured-macro ac:name="info" ac:schema-version="1">
+        <ac:rich-text-body>
+            <p>This is an <strong>information</strong> box with some important details.</p>
+            <ul>
+                <li>Point one</li>
+                <li>Point two</li>
+            </ul>
+        </ac:rich-text-body>
+    </ac:structured-macro>
+    
+    <h2>Mixed Content</h2>
+    <p>Here's some regular text followed by code:</p>
+    
+    <ac:structured-macro ac:name="code" ac:schema-version="1">
+        <ac:parameter ac:name="language">json</ac:parameter>
+        <ac:plain-text-body><![CDATA[{
+  "name": "confluence-md-exporter",
+  "version": "1.0.0",
+  "description": "Export Confluence pages to Markdown",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  }
+}]]></ac:plain-text-body>
+    </ac:structured-macro>
+    
+    <p>And then some more regular text after the code block.</p>
+</body>
+</html>

@@ -224,6 +224,7 @@ program
   .option('-i, --input <htmlFile>', 'Input HTML file path')
   .option('-o, --output <mdFile>', 'Output Markdown file path (optional)')
   .option('-t, --title <title>', 'Page title for metadata (optional)')
+  .option('--debug', 'Enable debug mode with verbose output')
   .action(async (options) => {
     try {
       const htmlFile = options.input;
@@ -242,12 +243,28 @@ program
       }
 
       console.log(`Converting HTML file: ${htmlFile}`);
+      
+      if (options.debug) {
+        console.log('🐛 Debug mode enabled');
+      }
 
       // Read HTML content
       const htmlContent = await fs.readFile(htmlFile, 'utf-8');
       
+      if (options.debug) {
+        console.log(`📄 HTML content length: ${htmlContent.length} characters`);
+        console.log(`📝 HTML preview (first 300 chars):`);
+        console.log(htmlContent.substring(0, 300) + '...');
+      }
+      
       const converter = new MarkdownConverter();
       const markdown = converter.convertToMarkdown(htmlContent);
+
+      if (options.debug) {
+        console.log(`📝 Markdown content length: ${markdown.length} characters`);
+        console.log(`📝 Markdown preview (first 500 chars):`);
+        console.log(markdown.substring(0, 500) + '...');
+      }
 
       // Determine output file path
       let outputFile = options.output;

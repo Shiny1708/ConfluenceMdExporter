@@ -6,3 +6,6 @@ dist/
 
 # Test outputs
 tests/outputs/
+
+# Exports
+exports/
