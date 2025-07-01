@@ -90,9 +90,9 @@ export class WikiJsClient {
    */
   async createPage(page: WikiJsPage): Promise<WikiJsPage> {
     const mutation = `
-      mutation createPage($content: String!, $description: String!, $editor: String!, $isPublished: Boolean!, $isPrivate: Boolean!, $locale: String!, $path: String!, $publishEndDate: Date, $publishStartDate: Date, $scriptCss: String, $scriptJs: String, $tags: [String]!, $title: String!) {
+      mutation createPage($content: String!, $description: String!, $editor: String!, $isPublished: Boolean!, $isPrivate: Boolean!, $locale: String!, $path: String!, $tags: [String]!, $title: String!) {
         pages {
-          create(content: $content, description: $description, editor: $editor, isPublished: $isPublished, isPrivate: $isPrivate, locale: $locale, path: $path, publishEndDate: $publishEndDate, publishStartDate: $publishStartDate, scriptCss: $scriptCss, scriptJs: $scriptJs, tags: $tags, title: $title) {
+          create(content: $content, description: $description, editor: $editor, isPublished: $isPublished, isPrivate: $isPrivate, locale: $locale, path: $path, tags: $tags, title: $title) {
             responseResult {
               succeeded
               errorCode
@@ -109,6 +109,18 @@ export class WikiJsClient {
     `;
 
     try {
+      console.log('🔍 Creating page with variables:', JSON.stringify({
+        content: page.content.substring(0, 100) + '...',
+        description: page.description || '',
+        editor: page.editor || 'markdown',
+        isPublished: page.isPublished !== false,
+        isPrivate: page.isPrivate || false,
+        locale: page.locale || 'en',
+        path: page.path.startsWith('/') ? page.path.substring(1) : page.path,
+        tags: page.tags || [],
+        title: page.title,
+      }, null, 2));
+      
       const response = await this.client.post('', {
         query: mutation,
         variables: {
@@ -118,11 +130,7 @@ export class WikiJsClient {
           isPublished: page.isPublished !== false,
           isPrivate: page.isPrivate || false,
           locale: page.locale || 'en',
-          path: page.path,
-          publishEndDate: page.publishEndDate || null,
-          publishStartDate: page.publishStartDate || null,
-          scriptCss: null,
-          scriptJs: null,
+          path: page.path.startsWith('/') ? page.path.substring(1) : page.path, // Remove leading slash if present
           tags: page.tags || [],
           title: page.title,
         },
