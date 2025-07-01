@@ -684,9 +684,59 @@ program
           let uploadedAssets = [];
           if (options.uploadImages && !options.dryRun) {
             console.log(`  🖼️  Processing images...`);
-            // This is a simplified version - for full image upload, use the confluence export command
-            const imageMatches = wikiJsMarkdown.match(/!\[([^\]]*)\]\(([^)]+)\)/g) || [];
-            console.log(`  📊 Found ${imageMatches.length} image references`);
+            
+            // Create temporary directory for image processing
+            const tempImagesDir = path.join(process.cwd(), 'temp-images-convert');
+            await fs.mkdir(tempImagesDir, { recursive: true });
+            
+            try {
+              // Process images: download from local paths and upload to Wiki.js
+              const imageMatches = wikiJsMarkdown.match(/!\[([^\]]*)\]\(([^)]+)\)/g) || [];
+              console.log(`  📊 Found ${imageMatches.length} image references`);
+              
+              for (const imageMatch of imageMatches) {
+                const matchResult = imageMatch.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+                if (!matchResult) continue;
+                
+                const [fullMatch, alt, imagePath] = matchResult;
+                
+                if (!imagePath || imagePath.startsWith('http')) {
+                  console.log(`    ⏭️  Skipping external/absolute image: ${imagePath}`);
+                  continue;
+                }
+                
+                // Convert relative path to absolute path
+                const baseDir = path.dirname(filePath);
+                const absoluteImagePath = path.resolve(baseDir, imagePath);
+                
+                try {
+                  // Check if local image file exists
+                  await fs.access(absoluteImagePath);
+                  
+                  console.log(`    📤 Uploading: ${path.basename(absoluteImagePath)}`);
+                  
+                  // Upload to Wiki.js
+                  const uploadedAsset = await wikiJsClient.uploadAsset(absoluteImagePath, options.uploadPath);
+                  uploadedAssets.push(uploadedAsset);
+                  
+                  // Replace the image reference in markdown
+                  const newImageUrl = `${wikiJsConfig.baseUrl}${options.uploadPath}/${uploadedAsset.filename}`;
+                  wikiJsMarkdown = wikiJsMarkdown.replace(fullMatch, `![${alt}](${newImageUrl})`);
+                  
+                  console.log(`    ✅ Uploaded and replaced: ${uploadedAsset.filename}`);
+                } catch (error) {
+                  console.log(`    ❌ Failed to process image ${absoluteImagePath}: ${error}`);
+                }
+              }
+              
+              // Clean up temp directory
+              await fs.rmdir(tempImagesDir, { recursive: true }).catch(() => {});
+              
+            } catch (error) {
+              console.log(`    ❌ Error processing images: ${error}`);
+              // Clean up temp directory on error
+              await fs.rmdir(tempImagesDir, { recursive: true }).catch(() => {});
+            }
           }
           
           if (!options.dryRun) {
@@ -714,9 +764,30 @@ program
             }
             
             console.log(`  ✅ Successfully ${existingPage ? 'updated' : 'created'} Wiki.js page`);
+            if (options.uploadImages && uploadedAssets.length > 0) {
+              console.log(`  📊 Uploaded ${uploadedAssets.length} images`);
+            }
           } else {
             console.log(`  📋 Would create/update: /${pagePath}`);
             console.log(`  📊 Content length: ${wikiJsMarkdown.length} characters`);
+            
+            // Show what images would be uploaded in dry-run mode
+            if (options.uploadImages) {
+              const imageMatches = wikiJsMarkdown.match(/!\[([^\]]*)\]\(([^)]+)\)/g) || [];
+              console.log(`  🖼️  Would upload ${imageMatches.length} images`);
+              
+              for (const imageMatch of imageMatches) {
+                const matchResult = imageMatch.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+                if (!matchResult) continue;
+                
+                const [, , imagePath] = matchResult;
+                if (!imagePath.startsWith('http')) {
+                  const baseDir = path.dirname(filePath);
+                  const absoluteImagePath = path.resolve(baseDir, imagePath);
+                  console.log(`    📤 Would upload: ${path.basename(absoluteImagePath)}`);
+                }
+              }
+            }
           }
           
         } catch (error) {
