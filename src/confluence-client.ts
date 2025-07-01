@@ -33,10 +33,16 @@ export class ConfluenceClient {
    */
   async getSpaces(): Promise<ConfluenceSpace[]> {
     try {
+      console.log(`Making request to: ${this.client.defaults.baseURL}/space`);
       const response = await this.client.get('/space');
       return response.data.results;
-    } catch (error) {
-      throw new Error(`Failed to fetch spaces: ${error}`);
+    } catch (error: any) {
+      console.error('API Request failed:');
+      console.error('- URL:', `${this.client.defaults.baseURL}/space`);
+      console.error('- Status:', error.response?.status);
+      console.error('- Status Text:', error.response?.statusText);
+      console.error('- Response:', error.response?.data);
+      throw new Error(`Failed to fetch spaces: ${error.message || error}`);
     }
   }
 
@@ -116,5 +122,29 @@ export class ConfluenceClient {
     }
 
     return allPages;
+  }
+
+  /**
+   * Test API connectivity and determine the correct endpoint
+   */
+  async testConnection(): Promise<void> {
+    const endpoints = [
+      '/space',  // Standard REST API
+      '../rest/api/space',  // Alternative path
+      '../../rest/api/space'  // Another alternative
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Testing endpoint: ${this.client.defaults.baseURL}${endpoint}`);
+        await this.client.get(endpoint);
+        console.log(`✅ Successfully connected using endpoint: ${endpoint}`);
+        return;
+      } catch (error: any) {
+        console.log(`❌ Failed with endpoint ${endpoint}: ${error.response?.status || error.message}`);
+      }
+    }
+    
+    throw new Error('Unable to connect to Confluence API with any known endpoint');
   }
 }

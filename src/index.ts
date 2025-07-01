@@ -105,6 +105,9 @@ program
   .option('--download-images', 'Download and save images locally')
   .action(async (options) => {
     try {
+      console.log('Debug - CLI options received:', options);
+      console.log('Debug - process.argv:', process.argv);
+      
       const config = loadConfigWithOptions(program.opts());
       const pageId = options.page;
       const outputDir = options.output || config.outputDir;
@@ -688,6 +691,27 @@ program
       
     } catch (error) {
       console.error('Error:', error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('test-connection')
+  .description('Test connection to Confluence API')
+  .action(async () => {
+    try {
+      const config = loadConfigWithOptions(program.opts());
+      const client = new ConfluenceClient(config);
+      
+      console.log('🔍 Testing Confluence API connection...');
+      console.log(`📡 Base URL: ${config.baseUrl}`);
+      console.log(`👤 Username: ${config.username}`);
+      console.log(`🔒 SSL Check: ${config.ignoreSSL ? 'Disabled' : 'Enabled'}`);
+      
+      await client.testConnection();
+      console.log('\n✅ Connection test successful!');
+    } catch (error) {
+      console.error('\n❌ Connection test failed:', error);
       process.exit(1);
     }
   });

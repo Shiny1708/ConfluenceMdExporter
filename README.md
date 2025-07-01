@@ -57,6 +57,11 @@ npm run build
 
 ### Run commands
 
+#### Test API connection
+```bash
+npm start test-connection
+```
+
 #### List available spaces
 ```bash
 npm start list-spaces
@@ -179,6 +184,32 @@ For Confluence Cloud, it's recommended to use API tokens instead of passwords fo
 2. **Space not found**: Check the space key is correct and you have access
 3. **Rate limiting**: The tool handles pagination automatically, but very large spaces may take time
 4. **SSL Certificate errors**: For self-signed certificates, see SSL Configuration below
+5. **API Connection errors (404)**: Test your API connection and endpoint
+
+### API Connection Issues
+
+If you get 404 errors when connecting to Confluence:
+
+**Test your connection first:**
+```bash
+npm start test-connection --ignore-ssl
+```
+
+**Common causes:**
+- **Incorrect base URL**: Make sure your `CONFLUENCE_BASE_URL` is correct
+- **API endpoint differences**: Some Confluence instances use different paths
+- **Authentication issues**: Verify your username and password/token
+- **Network restrictions**: Check if your Confluence instance is accessible
+
+**Example URLs:**
+```bash
+# Confluence Cloud
+CONFLUENCE_BASE_URL=https://yourcompany.atlassian.net
+
+# Confluence Server/Data Center
+CONFLUENCE_BASE_URL=https://confluence.yourcompany.com
+CONFLUENCE_BASE_URL=https://yourcompany.com/confluence
+```
 
 ### SSL Certificate Issues
 
