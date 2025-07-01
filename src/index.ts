@@ -480,21 +480,8 @@ program
       const wikiJsClient = new (await import('./wikijs-client')).WikiJsClient(wikiJsConfig);
       const converter = new MarkdownConverter();
 
-      // Query available editors
-      console.log('🔍 Checking available editors...');
-      const availableEditors = await wikiJsClient.getAvailableEditors();
-      console.log('Available editors:', availableEditors.map(e => `${e.key} (enabled: ${e.isEnabled})`).join(', '));
-      
-      // Find the best markdown editor
-      const markdownEditor = availableEditors.find(e => e.key === 'markdown' && e.isEnabled) || 
-                             availableEditors.find(e => e.key === 'code' && e.isEnabled) ||
-                             availableEditors.find(e => e.isEnabled);
-                             
-      if (!markdownEditor) {
-        console.error('Error: No enabled editors found in Wiki.js');
-        process.exit(1);
-      }
-      
+      // Use markdown editor directly since we know it works
+      const markdownEditor = { key: 'markdown' };
       console.log(`📝 Using editor: ${markdownEditor.key}`);
 
       // Get all pages from the space
@@ -649,21 +636,8 @@ program
       const wikiJsClient = new (await import('./wikijs-client')).WikiJsClient(wikiJsConfig);
       const converter = new MarkdownConverter();
 
-      // Query available editors
-      console.log('🔍 Checking available editors...');
-      const availableEditors = await wikiJsClient.getAvailableEditors();
-      console.log('Available editors:', availableEditors.map(e => `${e.key} (enabled: ${e.isEnabled})`).join(', '));
-      
-      // Find the best markdown editor
-      const markdownEditor = availableEditors.find(e => e.key === 'markdown' && e.isEnabled) || 
-                             availableEditors.find(e => e.key === 'code' && e.isEnabled) ||
-                             availableEditors.find(e => e.isEnabled);
-                             
-      if (!markdownEditor) {
-        console.error('Error: No enabled editors found in Wiki.js');
-        process.exit(1);
-      }
-      
+      // Use markdown editor directly since we know it works
+      const markdownEditor = { key: 'markdown' };
       console.log(`📝 Using editor: ${markdownEditor.key}`);
 
       // Check if input is file or directory

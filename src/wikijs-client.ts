@@ -109,18 +109,6 @@ export class WikiJsClient {
     `;
 
     try {
-      console.log('🔍 Creating page with variables:', JSON.stringify({
-        content: page.content.substring(0, 100) + '...',
-        description: page.description || '',
-        editor: page.editor || 'markdown',
-        isPublished: page.isPublished !== false,
-        isPrivate: page.isPrivate || false,
-        locale: page.locale || 'en',
-        path: page.path.startsWith('/') ? page.path.substring(1) : page.path,
-        tags: page.tags || [],
-        title: page.title,
-      }, null, 2));
-      
       const response = await this.client.post('', {
         query: mutation,
         variables: {
