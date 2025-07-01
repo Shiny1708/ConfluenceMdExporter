@@ -59,36 +59,36 @@ npm run build
 
 #### Test API connection
 ```bash
-npm start test-connection
+npm start -- test-connection
 ```
 
 #### List available spaces
 ```bash
-npm start list-spaces
+npm start -- list-spaces
 ```
 
 #### Export entire space
 ```bash
-npm start export-space --space DEMO
+npm start -- export-space --space DEMO
 ```
 
 #### Export specific page
 ```bash
-npm start export-page --page 123456789
+npm start -- export-page --page 123456789
 ```
 
 #### Search for pages
 ```bash
-npm start search --query "space = DEMO AND title ~ 'API'"
+npm start -- search --query "space = DEMO AND title ~ 'API'"
 ```
 
 #### Convert HTML files (Testing)
 ```bash
 # Basic HTML to Markdown conversion
-npm start convert-html --input sample.html --title "My Page"
+npm start -- convert-html --input sample.html --title "My Page"
 
 # Advanced conversion with custom options
-npm start convert-advanced --input sample.html \
+npm start -- convert-advanced --input sample.html \
   --title "My Page" \
   --bullet-marker "*" \
   --fence "~~~" \
@@ -96,25 +96,25 @@ npm start convert-advanced --input sample.html \
   --preview
 
 # Just preview without saving
-npm start convert-advanced --input sample.html --preview
+npm start -- convert-advanced --input sample.html --preview
 ```
 
 #### Download images with export
 ```bash
 # Export space and download all images locally
-npm start export-space --space DEMO --download-images
+npm start -- export-space --space DEMO --download-images
 
 # Export specific page with images
-npm start export-page --page 123456 --download-images
+npm start -- export-page --page 123456 --download-images
 ```
 
 #### Standalone image download
 ```bash
 # Download images from existing markdown file
-npm start download-images --input exported-page.md --images-dir ./images
+npm start -- download-images --input exported-page.md --images-dir ./images
 
 # Update the original file with local image paths
-npm start download-images --input exported-page.md --update
+npm start -- download-images --input exported-page.md --update
 ```
 
 ### Development
@@ -192,7 +192,7 @@ If you get 404 errors when connecting to Confluence:
 
 **Test your connection first:**
 ```bash
-npm start test-connection --ignore-ssl
+npm start -- test-connection --ignore-ssl
 ```
 
 **Common causes:**
@@ -226,31 +226,47 @@ IGNORE_SSL_ERRORS=true
 **Method 2: Command Line Flag**
 ```bash
 # Add --ignore-ssl to any command
-npm start list-spaces --ignore-ssl
-npm start export-space --space DEMO --ignore-ssl
-npm start export-page --page 123456 --ignore-ssl
+npm start -- list-spaces --ignore-ssl
+npm start -- export-space --space DEMO --ignore-ssl
+npm start -- export-page --page 123456 --ignore-ssl
 ```
 
 **⚠️ Security Warning**: Only use these options in development or trusted environments. Ignoring SSL errors can expose you to security risks.
 
 ### CLI Usage Issues
 
+- **npm argument passing**: When using npm start, you may need to use double dashes (`--`) to pass arguments correctly
+  ```bash
+  # ✅ Recommended (works on all platforms)
+  npm start -- export-page --page 123456
+  npm start -- list-spaces --ignore-ssl
+  npm start -- export-space --space DEMO --ignore-ssl
+  
+  # ✅ Alternative (direct node execution)
+  node dist/index.js export-page --page 123456
+  
+  # ❌ May not work on some platforms
+  npm start export-page --page 123456
+  ```
+
 - **export-page command**: Always use the `--page` flag, not a positional argument
   ```bash
   # ✅ Correct
-  npm start export-page --page 123456
+  npm start -- export-page --page 123456
   
   # ❌ Incorrect  
-  npm start export-page 123456
+  npm start -- export-page 123456
   ```
   
-- **Common mistake**: Forgetting the `--page` flag. The page ID must be provided as a named parameter, not a positional argument.
+- **Common issues**: 
+  - Forgetting the double dashes (`--`) when using npm start
+  - Forgetting the `--page` flag (page ID must be a named parameter)
 
 ### Debug Mode
 
 Set the `DEBUG` environment variable to see more detailed output:
 ```bash
-DEBUG=true npm start export-space --space DEMO
+DEBUG=true npm start -- export-space --space DEMO
 ```
 
 ## Contributing
@@ -277,8 +293,8 @@ For issues and questions:
 #### Standalone HTML Conversion
 For testing and refining the markdown conversion without connecting to Confluence:
 
-1. **Basic conversion**: `npm start convert-html --input file.html`
-2. **Advanced conversion**: `npm start convert-advanced --input file.html --preview`
+1. **Basic conversion**: `npm start -- convert-html --input file.html`
+2. **Advanced conversion**: `npm start -- convert-advanced --input file.html --preview`
 3. **Custom options**: Control heading styles, bullet markers, code fences, etc.
 4. **Preview mode**: Test conversions without saving files
 
@@ -289,8 +305,8 @@ Run the comprehensive test suite:
 ./tests/test-conversion.sh
 
 # Or test individual components
-npm start convert-html --input tests/samples/test-sample.html --preview
-npm start convert-html --input tests/samples/test-images.html --preview
+npm start -- convert-html --input tests/samples/test-sample.html --preview
+npm start -- convert-html --input tests/samples/test-images.html --preview
 ```
 
 #### Conversion Options
@@ -358,28 +374,28 @@ WIKIJS_UPLOAD_PATH=/uploads
 #### **Direct Confluence → Wiki.js Export**
 ```bash
 # Export entire Confluence space directly to Wiki.js
-npm start export-to-wikijs --space DEMO
+npm start -- export-to-wikijs --space DEMO
 
 # With custom settings
-npm start export-to-wikijs --space DEMO \
+npm start -- export-to-wikijs --space DEMO \
   --upload-path "/my-images" \
   --page-prefix "confluence" \
   --dry-run
 
 # Preview what would be uploaded (no actual changes)
-npm start export-to-wikijs --space DEMO --dry-run
+npm start -- export-to-wikijs --space DEMO --dry-run
 ```
 
 #### **Convert Existing Markdown to Wiki.js**
 ```bash
 # Convert single markdown file
-npm start convert-to-wikijs --input my-page.md --page-path "my-custom-path"
+npm start -- convert-to-wikijs --input my-page.md --page-path "my-custom-path"
 
 # Convert entire directory of markdown files
-npm start convert-to-wikijs --input ./exports/DEMO/
+npm start -- convert-to-wikijs --input ./exports/DEMO/
 
 # Preview changes without uploading
-npm start convert-to-wikijs --input ./exports/ --dry-run
+npm start -- convert-to-wikijs --input ./exports/ --dry-run
 ```
 
 #### **What Happens During Wiki.js Export**

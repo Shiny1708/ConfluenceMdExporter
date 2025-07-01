@@ -115,7 +115,7 @@ program
       // Get global options from parent program
       const globalOpts = command.parent?.opts() || {};
       const config = loadConfigWithOptions(globalOpts);
-      const pageId = options.page;
+      const pageId = options.page || process.env.PAGE_ID;
       const outputDir = options.output || config.outputDir;
 
       if (!pageId) {
