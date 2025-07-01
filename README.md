@@ -178,6 +178,38 @@ For Confluence Cloud, it's recommended to use API tokens instead of passwords fo
 1. **Authentication errors**: Verify your credentials and API token
 2. **Space not found**: Check the space key is correct and you have access
 3. **Rate limiting**: The tool handles pagination automatically, but very large spaces may take time
+4. **SSL Certificate errors**: For self-signed certificates, see SSL Configuration below
+
+### SSL Certificate Issues
+
+If you encounter SSL certificate errors (common with self-hosted Confluence instances):
+
+**Method 1: Environment Variable**
+```bash
+# In your .env file
+IGNORE_SSL_ERRORS=true
+```
+
+**Method 2: Command Line Flag**
+```bash
+# Add --ignore-ssl to any command
+npm start list-spaces --ignore-ssl
+npm start export-space --space DEMO --ignore-ssl
+npm start export-page --page 123456 --ignore-ssl
+```
+
+**⚠️ Security Warning**: Only use these options in development or trusted environments. Ignoring SSL errors can expose you to security risks.
+
+### CLI Usage Issues
+
+- **export-page command**: Always use the `--page` flag, not a positional argument
+  ```bash
+  # ✅ Correct
+  npm start export-page --page 123456
+  
+  # ❌ Incorrect  
+  npm start export-page 123456
+  ```
 
 ### Debug Mode
 

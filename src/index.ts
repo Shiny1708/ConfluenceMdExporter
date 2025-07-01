@@ -12,7 +12,18 @@ const program = new Command();
 program
   .name('confluence-md-exporter')
   .description('Export Confluence pages to Markdown format')
-  .version('1.0.0');
+  .version('1.0.0')
+  .option('--ignore-ssl', 'Ignore SSL certificate errors (useful for self-signed certificates)');
+
+// Helper function to load config with CLI options
+function loadConfigWithOptions(options: any) {
+  const config = loadConfig();
+  // Override SSL setting if provided via CLI
+  if (options.ignoreSsl) {
+    config.ignoreSSL = true;
+  }
+  return config;
+}
 
 program
   .command('export-space')
@@ -22,7 +33,7 @@ program
   .option('--download-images', 'Download and save images locally')
   .action(async (options) => {
     try {
-      const config = loadConfig();
+      const config = loadConfigWithOptions(program.opts());
       const spaceKey = options.space || config.spaceKey;
       const outputDir = options.output || config.outputDir;
 
@@ -94,7 +105,7 @@ program
   .option('--download-images', 'Download and save images locally')
   .action(async (options) => {
     try {
-      const config = loadConfig();
+      const config = loadConfigWithOptions(program.opts());
       const pageId = options.page;
       const outputDir = options.output || config.outputDir;
 
@@ -146,7 +157,7 @@ program
   .description('List all available Confluence spaces')
   .action(async () => {
     try {
-      const config = loadConfig();
+      const config = loadConfigWithOptions(program.opts());
       const client = new ConfluenceClient(config);
 
       console.log('Fetching spaces...');
@@ -169,7 +180,7 @@ program
   .option('-l, --limit <number>', 'Maximum number of results', '10')
   .action(async (options) => {
     try {
-      const config = loadConfig();
+      const config = loadConfigWithOptions(program.opts());
       const client = new ConfluenceClient(config);
       const query = options.query;
       const limit = parseInt(options.limit);
@@ -360,7 +371,7 @@ program
   .option('--update', 'Update the markdown file with local image paths')
   .action(async (options) => {
     try {
-      const config = loadConfig();
+      const config = loadConfigWithOptions(program.opts());
       const mdFile = options.input;
       const imagesDir = options.imagesDir;
       
@@ -419,7 +430,7 @@ program
   .option('--dry-run', 'Preview what would be uploaded without actually doing it')
   .action(async (options) => {
     try {
-      const config = loadConfig();
+      const config = loadConfigWithOptions(program.opts());
       const wikiJsConfig = loadWikiJsConfig();
       const spaceKey = options.space || config.spaceKey;
 

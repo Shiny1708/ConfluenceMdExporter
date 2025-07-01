@@ -23,6 +23,7 @@ export function loadConfig(): ConfluenceConfig {
     password: requiredEnvVars.password!,
     outputDir: process.env.OUTPUT_DIR || './exports',
     spaceKey: process.env.SPACE_KEY,
+    ignoreSSL: process.env.IGNORE_SSL_ERRORS === 'true',
   };
 }
 

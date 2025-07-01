@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import https from 'https';
 import { ConfluenceConfig, ConfluencePage, ConfluenceSpace, ConfluenceSearchResult } from './types';
 
 export class ConfluenceClient {
@@ -7,6 +8,12 @@ export class ConfluenceClient {
 
   constructor(config: ConfluenceConfig) {
     this.config = config;
+    
+    // Create HTTPS agent that ignores SSL errors if configured
+    const httpsAgent = config.ignoreSSL 
+      ? new https.Agent({ rejectUnauthorized: false })
+      : undefined;
+    
     this.client = axios.create({
       baseURL: `${config.baseUrl}/wiki/rest/api`,
       auth: {
@@ -17,6 +24,7 @@ export class ConfluenceClient {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
+      httpsAgent,
     });
   }
 

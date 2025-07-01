@@ -4,6 +4,7 @@ export interface ConfluenceConfig {
   password: string;
   outputDir: string;
   spaceKey?: string;
+  ignoreSSL?: boolean;
 }
 
 export interface ConfluencePage {
