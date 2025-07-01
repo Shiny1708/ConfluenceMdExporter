@@ -76,11 +76,14 @@ export class WikiJsClient {
       
       // Handle the response - Wiki.js returns upload info
       if (response.data && response.data.succeeded !== false) {
+        // Use the actual filename returned from Wiki.js (may be different from original due to case/sanitization)
+        const actualFilename = response.data.filename || response.data.name || fileName;
+        
         const asset: WikiJsAsset = {
           id: response.data.id || 0,
-          filename: response.data.filename || fileName,
+          filename: actualFilename, // Use the server-returned filename
           hash: response.data.hash || '',
-          ext: response.data.ext || path.extname(fileName).substring(1),
+          ext: response.data.ext || path.extname(actualFilename).substring(1),
           kind: response.data.kind || 'image',
           mime: response.data.mime || mimeType,
           fileSize: response.data.fileSize || fileBuffer.length,
@@ -89,7 +92,7 @@ export class WikiJsClient {
           updatedAt: response.data.updatedAt || new Date().toISOString(),
         };
         
-        console.log('Successfully uploaded asset:', asset);
+        console.log(`Successfully uploaded asset: ${fileName} -> ${actualFilename}`, asset);
         return asset;
       } else {
         throw new Error(response.data?.message || 'Upload failed with unknown error');

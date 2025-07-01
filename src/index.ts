@@ -726,6 +726,7 @@ program
                     // Use the configured upload path from .env (removing leading slash)
                     const folderName = (wikiJsConfig.uploadPath || '/uploads').replace(/^\//, '');
                     console.log(`    🔗 Using folder path for URL: "${folderName}" (from uploadPath: "${wikiJsConfig.uploadPath}")`);
+                    console.log(`    📁 Original filename: "${path.basename(absoluteImagePath)}", Upload result filename: "${uploadedAsset.filename}"`);
                     const newImageUrl = WikiJsClient.getAssetUrl(wikiJsConfig.baseUrl, uploadedAsset, folderName);
                     
                     wikiJsMarkdown = wikiJsMarkdown.replace(fullMatch, `![${alt}](${newImageUrl})`);
