@@ -203,6 +203,28 @@ export class MarkdownConverter {
   }
 
   /**
+   * Sanitize image filename while preserving extension
+   */
+  private sanitizeImageFilename(filename: string): string {
+    const lastDotIndex = filename.lastIndexOf('.');
+    if (lastDotIndex === -1) {
+      // No extension found, sanitize the whole filename
+      return this.sanitizeFilename(filename);
+    }
+    
+    const name = filename.substring(0, lastDotIndex);
+    const extension = filename.substring(lastDotIndex);
+    
+    const sanitizedName = name
+      .replace(/[<>:"/\\|?*]/g, '_') // Replace invalid characters
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .replace(/_+/g, '_') // Replace multiple underscores with single
+      .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+    
+    return (sanitizedName + extension).substring(0, 200); // Limit total length
+  }
+
+  /**
    * Test conversion with custom options
    */
   testConversion(html: string, options?: {
@@ -472,13 +494,16 @@ export class MarkdownConverter {
       
       try {
         const fullUrl = url.startsWith('http') ? url : `${confluenceBaseUrl}${url}`;
-        const filename = this.extractFilenameFromConfluenceUrl(url);
-        const localPath = path.join(imageDir, filename);
-        const relativePath = './images/' + filename;
+        const originalFilename = this.extractFilenameFromConfluenceUrl(url);
+        // Sanitize filename for local storage (replace spaces and special chars)
+        const sanitizedFilename = this.sanitizeImageFilename(originalFilename);
+        const localPath = path.join(imageDir, sanitizedFilename);
+        const relativePath = './images/' + sanitizedFilename;
         
         console.log(`  📥 Preparing to download:`);
         console.log(`    Full URL: ${fullUrl}`);
-        console.log(`    Filename: ${filename}`);
+        console.log(`    Original filename: ${originalFilename}`);
+        console.log(`    Sanitized filename: ${sanitizedFilename}`);
         console.log(`    Local path: ${localPath}`);
         console.log(`    Relative path: ${relativePath}`);
         
@@ -501,13 +526,13 @@ export class MarkdownConverter {
         console.log(`    Data size: ${response.data.byteLength} bytes`);
         
         await fs.writeFile(localPath, Buffer.from(response.data));
-        console.log(`  ✅ Downloaded and saved: ${filename}`);
+        console.log(`  ✅ Downloaded and saved: ${sanitizedFilename}`);
         
         // Verify file was written
         const stats = await fs.stat(localPath);
         console.log(`  📁 File verification: ${stats.size} bytes on disk`);
         
-        // Update markdown to use local path
+        // Update markdown to use local path with sanitized filename
         updatedMarkdown = updatedMarkdown.replace(fullMatch, `![${alt}](${relativePath})`);
         downloadCount++;
         console.log(`  🔄 Updated markdown link to: ![${alt}](${relativePath})`);
@@ -574,10 +599,11 @@ export class MarkdownConverter {
       
       try {
         const fullUrl = url.startsWith('http') ? url : `${confluenceBaseUrl}${url}`;
-        const filename = this.extractFilenameFromConfluenceUrl(url);
-        const localPath = path.join(imagesDir, filename);
+        const originalFilename = this.extractFilenameFromConfluenceUrl(url);
+        const sanitizedFilename = this.sanitizeImageFilename(originalFilename);
+        const localPath = path.join(imagesDir, sanitizedFilename);
         
-        console.log(`  📥 Downloading for Wiki.js: ${filename}`);
+        console.log(`  📥 Downloading for Wiki.js: ${originalFilename} -> ${sanitizedFilename}`);
         
         // Download the image
         const response = await axios.get(fullUrl, {
@@ -590,12 +616,12 @@ export class MarkdownConverter {
         await fs.writeFile(localPath, Buffer.from(response.data));
         
         // Upload to Wiki.js
-        console.log(`  ⬆️  Uploading to Wiki.js: ${filename}`);
+        console.log(`  ⬆️  Uploading to Wiki.js: ${sanitizedFilename}`);
         const asset = await wikiJsClient.uploadAsset(localPath, uploadPath);
         uploadedAssets.push(asset);
         
         // Update markdown to use Wiki.js asset path
-        const wikiJsImagePath = `${uploadPath}/${asset.filename || filename}`;
+        const wikiJsImagePath = `${uploadPath}/${asset.filename || sanitizedFilename}`;
         updatedMarkdown = updatedMarkdown.replace(fullMatch, `![${alt}](${wikiJsImagePath})`);
         
         // Clean up local file
