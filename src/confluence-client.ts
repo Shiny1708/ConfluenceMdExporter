@@ -54,14 +54,40 @@ export class ConfluenceClient {
   async getPagesFromSpace(spaceKey: string, limit: number = 50, start: number = 0): Promise<ConfluenceSearchResult> {
     try {
       await this.ensureApiPath();
-      const response = await this.client.get(`/space/${spaceKey}/content`, {
+      // Use the correct Confluence API endpoint for getting content from a space
+      const response = await this.client.get('/content', {
         params: {
+          spaceKey: spaceKey,
+          type: 'page',
+          status: 'current',
           limit,
           start,
           expand: 'body.storage,version,ancestors',
         },
       });
-      return response.data;
+      
+      console.log(`📊 API Response structure for space ${spaceKey}:`, {
+        hasResults: 'results' in response.data,
+        keys: Object.keys(response.data),
+        resultsType: typeof response.data.results,
+        resultsLength: response.data.results?.length || 'N/A',
+        sampleData: response.data.results ? response.data.results.slice(0, 2) : response.data
+      });
+      
+      // Handle different possible response structures
+      if (response.data.results) {
+        return response.data;
+      } else if (Array.isArray(response.data)) {
+        // Some Confluence APIs return the array directly
+        return {
+          results: response.data,
+          size: response.data.length,
+          start: start,
+          limit: limit
+        };
+      } else {
+        throw new Error(`Unexpected response structure: ${JSON.stringify(Object.keys(response.data))}`);
+      }
     } catch (error) {
       throw new Error(`Failed to fetch pages from space ${spaceKey}: ${error}`);
     }
@@ -117,6 +143,13 @@ export class ConfluenceClient {
 
     while (true) {
       const result = await this.getPagesFromSpace(spaceKey, limit, start);
+      
+      // Safety check for results
+      if (!result || !result.results || !Array.isArray(result.results)) {
+        console.error('❌ Invalid response structure:', result);
+        throw new Error(`Invalid response structure from Confluence API. Expected 'results' array but got: ${typeof result?.results}`);
+      }
+      
       allPages.push(...result.results);
 
       if (result.results.length < limit) {
