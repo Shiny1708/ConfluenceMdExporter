@@ -80,8 +80,19 @@ export class WikiJsClient {
       });
 
       return response.data;
-    } catch (error) {
-      throw new Error(`Failed to upload asset ${fileName}: ${error}`);
+    } catch (error: any) {
+      console.log('Upload error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          baseURL: error.config?.baseURL,
+        }
+      });
+      throw new Error(`Failed to upload asset ${fileName}: ${error.message}`);
     }
   }
 
@@ -311,5 +322,40 @@ export class WikiJsClient {
     }
 
     return path;
+  }
+
+  /**
+   * Alternative method: Convert image to base64 data URL for embedding
+   */
+  async convertImageToDataUrl(filePath: string): Promise<string> {
+    try {
+      const fileBuffer = await fs.readFile(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      
+      let mimeType = 'image/png'; // default
+      switch (ext) {
+        case '.jpg':
+        case '.jpeg':
+          mimeType = 'image/jpeg';
+          break;
+        case '.png':
+          mimeType = 'image/png';
+          break;
+        case '.gif':
+          mimeType = 'image/gif';
+          break;
+        case '.svg':
+          mimeType = 'image/svg+xml';
+          break;
+        case '.webp':
+          mimeType = 'image/webp';
+          break;
+      }
+      
+      const base64Data = fileBuffer.toString('base64');
+      return `data:${mimeType};base64,${base64Data}`;
+    } catch (error) {
+      throw new Error(`Failed to convert image to data URL: ${error}`);
+    }
   }
 }

@@ -715,15 +715,25 @@ program
                   
                   console.log(`    📤 Uploading: ${path.basename(absoluteImagePath)}`);
                   
-                  // Upload to Wiki.js
-                  const uploadedAsset = await wikiJsClient.uploadAsset(absoluteImagePath, options.uploadPath);
-                  uploadedAssets.push(uploadedAsset);
-                  
-                  // Replace the image reference in markdown
-                  const newImageUrl = `${wikiJsConfig.baseUrl}${options.uploadPath}/${uploadedAsset.filename}`;
-                  wikiJsMarkdown = wikiJsMarkdown.replace(fullMatch, `![${alt}](${newImageUrl})`);
-                  
-                  console.log(`    ✅ Uploaded and replaced: ${uploadedAsset.filename}`);
+                  try {
+                    // Upload to Wiki.js
+                    const uploadedAsset = await wikiJsClient.uploadAsset(absoluteImagePath, options.uploadPath);
+                    uploadedAssets.push(uploadedAsset);
+                    
+                    // Replace the image reference in markdown
+                    const newImageUrl = `${wikiJsConfig.baseUrl}${options.uploadPath}/${uploadedAsset.filename}`;
+                    wikiJsMarkdown = wikiJsMarkdown.replace(fullMatch, `![${alt}](${newImageUrl})`);
+                    
+                    console.log(`    ✅ Uploaded and replaced: ${uploadedAsset.filename}`);
+                  } catch (uploadError) {
+                    console.log(`    ⚠️  Upload failed, using base64 embedding instead...`);
+                    
+                    // Fallback: Convert image to base64 data URL
+                    const dataUrl = await wikiJsClient.convertImageToDataUrl(absoluteImagePath);
+                    wikiJsMarkdown = wikiJsMarkdown.replace(fullMatch, `![${alt}](${dataUrl})`);
+                    
+                    console.log(`    ✅ Embedded as base64: ${path.basename(absoluteImagePath)}`);
+                  }
                 } catch (error) {
                   console.log(`    ❌ Failed to process image ${absoluteImagePath}: ${error}`);
                 }
