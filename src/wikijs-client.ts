@@ -22,63 +22,46 @@ export class WikiJsClient {
    * Upload an asset (image) to Wiki.js
    */
   async uploadAsset(filePath: string, uploadPath?: string): Promise<WikiJsAsset> {
-    const formData = new FormData();
-    const fileBuffer = await fs.readFile(filePath);
     const fileName = path.basename(filePath);
     const targetPath = uploadPath || this.config.uploadPath || '/uploads';
 
-    // Create a blob from the file buffer
-    const blob = new Blob([fileBuffer]);
-    formData.append('mediaUpload', blob, fileName);
-
-    const uploadQuery = `
-      mutation ($mediaUpload: Upload!, $folderId: Int!) {
-        assets {
-          createAsset(
-            file: $mediaUpload
-            folderId: $folderId
-          ) {
-            responseResult {
-              succeeded
-              errorCode
-              slug
-              message
-            }
-            asset {
-              id
-              filename
-              hash
-              ext
-              kind
-              mime
-              fileSize
-              metadata
-              createdAt
-              updatedAt
-            }
-          }
-        }
-      }
-    `;
-
     try {
-      // For simplicity, we'll use the REST endpoint for file upload
+      // First, get available folders to find the target folder ID
+      const folders = await this.getAssetFolders();
+      console.log('Available asset folders:', folders.map(f => `${f.name} (id: ${f.id}, path: ${f.path})`));
+      
+      // Find the uploads folder or root folder
+      let targetFolder = folders.find(f => f.path === targetPath || f.slug === 'uploads' || f.name === 'uploads');
+      if (!targetFolder) {
+        // Use root folder (ID 0) as fallback
+        targetFolder = folders.find(f => f.path === '/' || f.id === 0) || { id: 0, name: 'root', path: '/' };
+      }
+      
+      console.log(`Using folder: ${targetFolder.name} (id: ${targetFolder.id})`);
+
+      // Create form data for upload
+      const formData = new FormData();
+      const fileBuffer = await fs.readFile(filePath);
+      const blob = new Blob([fileBuffer]);
+      
+      formData.append('mediaUpload', blob, fileName);
+      formData.append('folderId', targetFolder.id.toString());
+
+      // Use the Wiki.js upload endpoint
       const uploadClient = axios.create({
-        baseURL: `${this.config.baseUrl}/u`,
+        baseURL: `${this.config.baseUrl}`,
         headers: {
           'Authorization': `Bearer ${this.config.apiKey}`,
         },
       });
 
-      const response = await uploadClient.post('', formData, {
+      const response = await uploadClient.post('/u', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        params: {
-          path: targetPath,
-        },
       });
 
+      console.log('Upload response:', response.data);
       return response.data;
     } catch (error: any) {
       console.log('Upload error details:', {
@@ -300,6 +283,40 @@ export class WikiJsClient {
       return response.data.data.editors || [];
     } catch (error) {
       console.log('Failed to query editors:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get available asset folders from Wiki.js
+   */
+  async getAssetFolders(): Promise<any[]> {
+    const query = `
+      query {
+        assets {
+          folders {
+            id
+            name
+            slug
+            path
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await this.client.post('', {
+        query,
+      });
+
+      if (response.data.errors) {
+        console.log('Error querying asset folders:', response.data.errors);
+        return [];
+      }
+
+      return response.data.data.assets.folders || [];
+    } catch (error) {
+      console.log('Failed to query asset folders:', error);
       return [];
     }
   }
