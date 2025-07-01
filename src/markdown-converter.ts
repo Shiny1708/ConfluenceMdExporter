@@ -86,10 +86,11 @@ export class MarkdownConverter {
           console.log(`Debug: Extracted attachment filename: "${filename}"`);
           
           // Create a standard img tag that our image processing can handle
-          // Use the page ID to build the download URL
+          // Use the page ID to build the download URL, encoding the filename for URLs
+          const encodedFilename = encodeURIComponent(filename);
           const downloadUrl = pageId 
-            ? `/download/attachments/${pageId}/${filename}`
-            : `/download/attachments/PAGE_ID/${filename}`;
+            ? `/download/attachments/${pageId}/${encodedFilename}`
+            : `/download/attachments/PAGE_ID/${encodedFilename}`;
           let imgTag = `<img src="${downloadUrl}" alt="${filename}"`;
           
           if (width) imgTag += ` width="${width}"`;
@@ -97,6 +98,7 @@ export class MarkdownConverter {
           imgTag += ` />`;
           
           console.log(`Debug: Converted to img tag: ${imgTag}`);
+          console.log(`Debug: Encoded filename "${filename}" -> "${encodedFilename}"`);
           return imgTag;
         }
         
