@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Confluence Images Test</title>
+</head>
+<body>
+    <h1>Confluence Image Testing</h1>
+    
+    <h2>Regular Images</h2>
+    <p>External image: <img src="https://example.com/image.png" alt="External Image" /></p>
+    
+    <h2>Confluence Attachments</h2>
+    <p>Page attachment: <img src="/download/attachments/123456/screenshot.png" alt="Screenshot" title="Page Screenshot" /></p>
+    <p>Thumbnail: <img src="/download/thumbnails/123456/diagram.png?version=1&amp;modificationDate=1640995200000" alt="Diagram Thumbnail" width="300" height="200" /></p>
+    
+    <h2>Styled Images</h2>
+    <p>Image with dimensions: <img src="/download/attachments/789012/chart.jpg" alt="Chart" width="500" height="300" border="1" /></p>
+    
+    <h2>Image Gallery (Confluence Macro)</h2>
+    <div class="confluence-gallery" ac:name="gallery">
+        <div class="gallery-item">
+            <img src="/download/attachments/123456/photo1.jpg" alt="Photo 1" />
+        </div>
+        <div class="gallery-item">
+            <img src="/download/attachments/123456/photo2.jpg" alt="Photo 2" />
+        </div>
+        <div class="gallery-item">
+            <img src="/download/attachments/123456/photo3.jpg" alt="Photo 3" />
+        </div>
+    </div>
+    
+    <h2>Image Macro</h2>
+    <div class="confluence-macro" ac:name="image">
+        <img src="/download/attachments/456789/complex-diagram.svg" 
+             alt="Complex Diagram" 
+             title="System Architecture Diagram"
+             width="800" 
+             height="600" 
+             style="border: 2px solid #ccc;" />
+    </div>
+    
+    <h2>Inline Images</h2>
+    <p>Here's an inline icon <img src="/download/attachments/123456/icon.png" alt="icon" width="16" height="16" /> in the text.</p>
+    
+    <h2>Images in Tables</h2>
+    <table>
+        <tr>
+            <th>Feature</th>
+            <th>Screenshot</th>
+        </tr>
+        <tr>
+            <td>Login Page</td>
+            <td><img src="/download/attachments/123456/login.png" alt="Login Screenshot" width="200" /></td>
+        </tr>
+        <tr>
+            <td>Dashboard</td>
+            <td><img src="/download/attachments/123456/dashboard.png" alt="Dashboard Screenshot" width="200" /></td>
+        </tr>
+    </table>
+    
+    <h2>Images with Special Characters</h2>
+    <p><img src="/download/attachments/123456/file%20with%20spaces.png" alt="File with spaces" /></p>
+    <p><img src="/download/attachments/123456/日本語ファイル.jpg" alt="Japanese filename" /></p>
+</body>
+</html>

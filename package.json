@@ -1,0 +1,31 @@
+{
+  "name": "confluence-md-exporter",
+  "version": "1.0.0",
+  "description": "Export Confluence pages to Markdown format",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "clean": "rm -rf dist",
+    "example": "ts-node src/example.ts",
+    "test": "./tests/test-conversion.sh",
+    "test:clean": "rm -rf tests/outputs/*.md",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": ["confluence", "markdown", "export", "api"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "turndown": "^7.1.2",
+    "commander": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/turndown": "^5.0.4",
+    "typescript": "^5.2.0",
+    "ts-node": "^10.9.0"
+  }
+}
