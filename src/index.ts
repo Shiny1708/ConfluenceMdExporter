@@ -496,7 +496,7 @@ program
         
         try {
           // Convert to markdown
-          let markdown = converter.convertToMarkdown(page.body.storage.value);
+          let markdown = converter.convertToMarkdown(page.body.storage.value, page.id);
           
           // Convert relative image URLs to absolute
           markdown = converter.convertImageUrls(markdown, config.baseUrl);

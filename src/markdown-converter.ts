@@ -26,16 +26,16 @@ export class MarkdownConverter {
   /**
    * Convert HTML content to Markdown
    */
-  convertToMarkdown(html: string): string {
+  convertToMarkdown(html: string, pageId?: string): string {
     // Pre-process HTML to handle Confluence-specific elements
-    const processedHtml = this.preprocessConfluenceHtml(html);
+    const processedHtml = this.preprocessConfluenceHtml(html, pageId);
     return this.turndownService.turndown(processedHtml);
   }
 
   /**
    * Pre-process HTML to handle Confluence-specific elements that TurndownService can't handle natively
    */
-  private preprocessConfluenceHtml(html: string): string {
+  private preprocessConfluenceHtml(html: string, pageId?: string): string {
     let processedHtml = html;
     
     console.log('Debug: Starting HTML preprocessing...');
@@ -64,6 +64,45 @@ export class MarkdownConverter {
           console.log('Debug: No code content found, returning comment');
           return `<!-- Confluence ${macroName} macro (content not extracted) -->`;
         }
+      }
+    );
+    
+    // Handle Confluence image elements
+    processedHtml = processedHtml.replace(
+      /<ac:image[^>]*>([\s\S]*?)<\/ac:image>/gi,
+      (match, content) => {
+        console.log(`Debug: Found ac:image element:`, match.substring(0, 200) + '...');
+        
+        // Extract width/height attributes from ac:image
+        const widthMatch = match.match(/ac:width="([^"]+)"/i);
+        const heightMatch = match.match(/ac:height="([^"]+)"/i);
+        const width = widthMatch ? widthMatch[1] : '';
+        const height = heightMatch ? heightMatch[1] : '';
+        
+        // Extract attachment filename
+        const attachmentMatch = content.match(/<ri:attachment\s+ri:filename="([^"]+)"/i);
+        if (attachmentMatch) {
+          const filename = attachmentMatch[1];
+          console.log(`Debug: Extracted attachment filename: "${filename}"`);
+          
+          // Create a standard img tag that our image processing can handle
+          // Use the page ID to build the download URL
+          const downloadUrl = pageId 
+            ? `/download/attachments/${pageId}/${filename}`
+            : `/download/attachments/PAGE_ID/${filename}`;
+          let imgTag = `<img src="${downloadUrl}" alt="${filename}"`;
+          
+          if (width) imgTag += ` width="${width}"`;
+          if (height) imgTag += ` height="${height}"`;
+          imgTag += ` />`;
+          
+          console.log(`Debug: Converted to img tag: ${imgTag}`);
+          return imgTag;
+        }
+        
+        // If we can't extract the attachment, return a comment
+        console.log('Debug: Could not extract attachment filename');
+        return `<!-- Confluence Image (could not extract attachment) -->`;
       }
     );
     
@@ -109,7 +148,7 @@ export class MarkdownConverter {
    * Convert a Confluence page to Markdown and save to file
    */
   async convertPageToFile(page: ConfluencePage, outputDir: string, confluenceBaseUrl?: string): Promise<string> {
-    let markdown = this.convertToMarkdown(page.body.storage.value);
+    let markdown = this.convertToMarkdown(page.body.storage.value, page.id);
     
     // Convert relative image URLs to absolute if base URL is provided
     if (confluenceBaseUrl) {
