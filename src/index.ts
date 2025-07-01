@@ -103,17 +103,29 @@ program
   .option('-p, --page <pageId>', 'Confluence page ID')
   .option('-o, --output <directory>', 'Output directory')
   .option('--download-images', 'Download and save images locally')
-  .action(async (options) => {
+  .action(async (options, command) => {
     try {
-      console.log('Debug - CLI options received:', options);
-      console.log('Debug - process.argv:', process.argv);
+      console.log('=== DEBUG INFO ===');
+      console.log('Command options:', JSON.stringify(options, null, 2));
+      console.log('Process argv:', process.argv);
+      console.log('Command name:', command.name());
+      console.log('Parent options:', command.parent?.opts());
+      console.log('==================');
       
-      const config = loadConfigWithOptions(program.opts());
+      // Get global options from parent program
+      const globalOpts = command.parent?.opts() || {};
+      const config = loadConfigWithOptions(globalOpts);
       const pageId = options.page;
       const outputDir = options.output || config.outputDir;
 
       if (!pageId) {
         console.error('Error: Page ID is required. Use --page option');
+        console.error('');
+        console.error('Correct usage:');
+        console.error('  npm start export-page --page 123456789');
+        console.error('');
+        console.error('You provided these arguments:', process.argv.slice(2));
+        console.error('Received options:', JSON.stringify(options, null, 2));
         process.exit(1);
       }
 

@@ -243,6 +243,8 @@ npm start export-page --page 123456 --ignore-ssl
   # ❌ Incorrect  
   npm start export-page 123456
   ```
+  
+- **Common mistake**: Forgetting the `--page` flag. The page ID must be provided as a named parameter, not a positional argument.
 
 ### Debug Mode
 
