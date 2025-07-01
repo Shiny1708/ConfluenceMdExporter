@@ -206,10 +206,12 @@ npm start test-connection --ignore-ssl
 # Confluence Cloud
 CONFLUENCE_BASE_URL=https://yourcompany.atlassian.net
 
-# Confluence Server/Data Center
+# Confluence Server/Data Center (common patterns)
 CONFLUENCE_BASE_URL=https://confluence.yourcompany.com
 CONFLUENCE_BASE_URL=https://yourcompany.com/confluence
 ```
+
+**Important:** Only provide the base URL without `/rest/api` - the tool will automatically detect the correct API path.
 
 ### SSL Certificate Issues
 

@@ -14,8 +14,9 @@ export class ConfluenceClient {
       ? new https.Agent({ rejectUnauthorized: false })
       : undefined;
     
+    // Start with base URL only - we'll determine the correct API path
     this.client = axios.create({
-      baseURL: `${config.baseUrl}/wiki/rest/api`,
+      baseURL: config.baseUrl,
       auth: {
         username: config.username,
         password: config.password,
@@ -33,6 +34,7 @@ export class ConfluenceClient {
    */
   async getSpaces(): Promise<ConfluenceSpace[]> {
     try {
+      await this.ensureApiPath();
       console.log(`Making request to: ${this.client.defaults.baseURL}/space`);
       const response = await this.client.get('/space');
       return response.data.results;
@@ -51,6 +53,7 @@ export class ConfluenceClient {
    */
   async getPagesFromSpace(spaceKey: string, limit: number = 50, start: number = 0): Promise<ConfluenceSearchResult> {
     try {
+      await this.ensureApiPath();
       const response = await this.client.get(`/space/${spaceKey}/content`, {
         params: {
           limit,
@@ -69,6 +72,7 @@ export class ConfluenceClient {
    */
   async getPage(pageId: string): Promise<ConfluencePage> {
     try {
+      await this.ensureApiPath();
       const response = await this.client.get(`/content/${pageId}`, {
         params: {
           expand: 'body.storage,version,ancestors',
@@ -129,9 +133,9 @@ export class ConfluenceClient {
    */
   async testConnection(): Promise<void> {
     const endpoints = [
-      '/space',  // Standard REST API
-      '../rest/api/space',  // Alternative path
-      '../../rest/api/space'  // Another alternative
+      '/rest/api/space',        // Direct REST API (Confluence Server/Data Center)
+      '/wiki/rest/api/space',   // Standard wiki path (some installations)
+      '/confluence/rest/api/space' // Alternative path
     ];
 
     for (const endpoint of endpoints) {
@@ -139,6 +143,11 @@ export class ConfluenceClient {
         console.log(`Testing endpoint: ${this.client.defaults.baseURL}${endpoint}`);
         await this.client.get(endpoint);
         console.log(`✅ Successfully connected using endpoint: ${endpoint}`);
+        
+        // Update the baseURL to include the working API path
+        const apiPath = endpoint.replace('/space', '');
+        this.client.defaults.baseURL = `${this.config.baseUrl}${apiPath}`;
+        console.log(`📡 Updated base URL to: ${this.client.defaults.baseURL}`);
         return;
       } catch (error: any) {
         console.log(`❌ Failed with endpoint ${endpoint}: ${error.response?.status || error.message}`);
@@ -146,5 +155,18 @@ export class ConfluenceClient {
     }
     
     throw new Error('Unable to connect to Confluence API with any known endpoint');
+  }
+
+  /**
+   * Ensure the client has the correct API base URL
+   */
+  private async ensureApiPath(): Promise<void> {
+    // If the baseURL already includes an API path, we're good
+    if (this.client.defaults.baseURL?.includes('/rest/api')) {
+      return;
+    }
+    
+    // Otherwise, determine the correct path
+    await this.testConnection();
   }
 }
