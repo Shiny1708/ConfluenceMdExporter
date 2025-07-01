@@ -90,21 +90,9 @@ export class WikiJsClient {
    */
   async createPage(page: WikiJsPage): Promise<WikiJsPage> {
     const mutation = `
-      mutation ($content: String!, $description: String!, $editor: String!, $isPrivate: Boolean!, $isPublished: Boolean!, $locale: String!, $path: String!, $publishEndDate: Date, $publishStartDate: Date, $tags: [String]!, $title: String!) {
+      mutation createPage($content: String!, $description: String!, $editor: String!, $isPublished: Boolean!, $isPrivate: Boolean!, $locale: String!, $path: String!, $publishEndDate: Date, $publishStartDate: Date, $scriptCss: String, $scriptJs: String, $tags: [String]!, $title: String!) {
         pages {
-          create(
-            content: $content
-            description: $description
-            editor: $editor
-            isPrivate: $isPrivate
-            isPublished: $isPublished
-            locale: $locale
-            path: $path
-            publishEndDate: $publishEndDate
-            publishStartDate: $publishStartDate
-            tags: $tags
-            title: $title
-          ) {
+          create(content: $content, description: $description, editor: $editor, isPublished: $isPublished, isPrivate: $isPrivate, locale: $locale, path: $path, publishEndDate: $publishEndDate, publishStartDate: $publishStartDate, scriptCss: $scriptCss, scriptJs: $scriptJs, tags: $tags, title: $title) {
             responseResult {
               succeeded
               errorCode
@@ -113,30 +101,7 @@ export class WikiJsClient {
             }
             page {
               id
-              path
-              hash
-              title
-              description
-              isPrivate
-              isPublished
-              privateNS
-              publishStartDate
-              publishEndDate
-              tags {
-                id
-                tag
-                title
-                createdAt
-                updatedAt
-              }
-              content
-              contentType
-              createdAt
               updatedAt
-              editor
-              locale
-              authorId
-              creatorId
             }
           }
         }
@@ -150,12 +115,14 @@ export class WikiJsClient {
           content: page.content,
           description: page.description || '',
           editor: page.editor || 'markdown',
-          isPrivate: page.isPrivate || false,
           isPublished: page.isPublished !== false,
+          isPrivate: page.isPrivate || false,
           locale: page.locale || 'en',
           path: page.path,
-          publishEndDate: page.publishEndDate,
-          publishStartDate: page.publishStartDate,
+          publishEndDate: page.publishEndDate || null,
+          publishStartDate: page.publishStartDate || null,
+          scriptCss: null,
+          scriptJs: null,
           tags: page.tags || [],
           title: page.title,
         },
@@ -170,7 +137,12 @@ export class WikiJsClient {
         throw new Error(`Failed to create page: ${result.responseResult.message}`);
       }
 
-      return result.page;
+      // Return a combined object with the input data and the response
+      return {
+        ...page,
+        id: result.page.id,
+        updatedAt: result.page.updatedAt,
+      };
     } catch (error) {
       throw new Error(`Failed to create Wiki.js page: ${error}`);
     }
@@ -288,6 +260,40 @@ export class WikiJsClient {
       return response.data.data.pages.single;
     } catch (error) {
       return null;
+    }
+  }
+
+  /**
+   * Query available editors from Wiki.js
+   */
+  async getAvailableEditors(): Promise<any[]> {
+    const query = `
+      query {
+        editors {
+          key
+          isEnabled
+          config {
+            key
+            value
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await this.client.post('', {
+        query,
+      });
+
+      if (response.data.errors) {
+        console.log('Error querying editors:', response.data.errors);
+        return [];
+      }
+
+      return response.data.data.editors || [];
+    } catch (error) {
+      console.log('Failed to query editors:', error);
+      return [];
     }
   }
 

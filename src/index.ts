@@ -480,6 +480,23 @@ program
       const wikiJsClient = new (await import('./wikijs-client')).WikiJsClient(wikiJsConfig);
       const converter = new MarkdownConverter();
 
+      // Query available editors
+      console.log('🔍 Checking available editors...');
+      const availableEditors = await wikiJsClient.getAvailableEditors();
+      console.log('Available editors:', availableEditors.map(e => `${e.key} (enabled: ${e.isEnabled})`).join(', '));
+      
+      // Find the best markdown editor
+      const markdownEditor = availableEditors.find(e => e.key === 'markdown' && e.isEnabled) || 
+                             availableEditors.find(e => e.key === 'code' && e.isEnabled) ||
+                             availableEditors.find(e => e.isEnabled);
+                             
+      if (!markdownEditor) {
+        console.error('Error: No enabled editors found in Wiki.js');
+        process.exit(1);
+      }
+      
+      console.log(`📝 Using editor: ${markdownEditor.key}`);
+
       // Get all pages from the space
       const pages = await confluenceClient.getAllPagesFromSpace(spaceKey);
       console.log(`Found ${pages.length} pages to export`);
@@ -530,7 +547,7 @@ program
               title: page.title,
               content: wikiJsMarkdown,
               contentType: 'markdown',
-              editor: 'markdown',
+              editor: markdownEditor.key,
               locale: 'en',
               isPublished: true,
               tags: [spaceKey.toLowerCase(), 'confluence-import'],
@@ -632,6 +649,23 @@ program
       const wikiJsClient = new (await import('./wikijs-client')).WikiJsClient(wikiJsConfig);
       const converter = new MarkdownConverter();
 
+      // Query available editors
+      console.log('🔍 Checking available editors...');
+      const availableEditors = await wikiJsClient.getAvailableEditors();
+      console.log('Available editors:', availableEditors.map(e => `${e.key} (enabled: ${e.isEnabled})`).join(', '));
+      
+      // Find the best markdown editor
+      const markdownEditor = availableEditors.find(e => e.key === 'markdown' && e.isEnabled) || 
+                             availableEditors.find(e => e.key === 'code' && e.isEnabled) ||
+                             availableEditors.find(e => e.isEnabled);
+                             
+      if (!markdownEditor) {
+        console.error('Error: No enabled editors found in Wiki.js');
+        process.exit(1);
+      }
+      
+      console.log(`📝 Using editor: ${markdownEditor.key}`);
+
       // Check if input is file or directory
       const stat = await fs.stat(inputPath);
       const filesToProcess = [];
@@ -690,7 +724,7 @@ program
               title: title,
               content: wikiJsMarkdown,
               contentType: 'markdown',
-              editor: 'markdown',
+              editor: markdownEditor.key,
               locale: 'en',
               isPublished: true,
               tags: ['markdown-import'],
