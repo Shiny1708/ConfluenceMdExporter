@@ -454,17 +454,17 @@ export class WikiJsClient {
       // Use hash-based URL (preferred method)
       return `${cleanBaseUrl}/_assets/${asset.hash}.${asset.ext}`;
     } else {
-      // Use folder-based URL
+      // Use folder-based URL - Wiki.js serves assets directly from /folder/filename
       // Get folder name from asset metadata, parameter, or default to 'uploads'
       const folder = folderName || 
                     asset.metadata?.folderName || 
                     (asset.metadata?.folderId === 0 ? '' : 'uploads'); // Root folder has no path
       
       if (folder) {
-        return `${cleanBaseUrl}/_assets/${folder}/${asset.filename}`;
+        return `/${folder}/${asset.filename}`;
       } else {
         // Root folder - no folder path needed
-        return `${cleanBaseUrl}/_assets/${asset.filename}`;
+        return `/${asset.filename}`;
       }
     }
   }
