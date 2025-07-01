@@ -19,7 +19,7 @@ export class WikiJsClient {
   }
 
   /**
-   * Upload an asset (image) to Wiki.js
+   * Upload an asset (image) to Wiki.js using REST endpoint with proper metadata
    */
   async uploadAsset(filePath: string, uploadPath?: string): Promise<WikiJsAsset> {
     const fileName = path.basename(filePath);
@@ -39,15 +39,24 @@ export class WikiJsClient {
       
       console.log(`Using folder: ${targetFolder.name} (id: ${targetFolder.id})`);
 
-      // Create form data for upload
-      const formData = new FormData();
+      // Read file
       const fileBuffer = await fs.readFile(filePath);
-      const blob = new Blob([fileBuffer]);
+      const mimeType = this.getMimeType(fileName);
       
+      console.log(`Upload details: fileName=${fileName}, fileSize=${fileBuffer.length}, folderId=${targetFolder.id}, mimeType=${mimeType}`);
+
+      // Create form data for upload with proper Wiki.js format
+      // Wiki.js expects two parts both named 'mediaUpload':
+      // 1. JSON metadata with folderId
+      // 2. The actual file data
+      const formData = new FormData();
+      const blob = new Blob([fileBuffer], { type: mimeType });
+      
+      // First part: JSON metadata
+      formData.append('mediaUpload', JSON.stringify({ folderId: targetFolder.id }));
+      
+      // Second part: File data
       formData.append('mediaUpload', blob, fileName);
-      formData.append('folderId', targetFolder.id.toString());
-      
-      console.log(`Upload details: fileName=${fileName}, fileSize=${fileBuffer.length}, folderId=${targetFolder.id}`);
 
       // Use the Wiki.js upload endpoint
       const uploadClient = axios.create({
@@ -65,73 +74,26 @@ export class WikiJsClient {
 
       console.log('Upload response:', response.data);
       
-      // Handle different possible response formats from Wiki.js
-      let asset: WikiJsAsset;
-      
-      if (response.data && typeof response.data === 'object') {
-        // If response.data is already the asset object
-        if (response.data.filename || response.data.id) {
-          asset = {
-            id: response.data.id || 0,
-            filename: response.data.filename || fileName,
-            hash: response.data.hash || '',
-            ext: response.data.ext || path.extname(fileName).substring(1),
-            kind: response.data.kind || 'image',
-            mime: response.data.mime || 'image/png',
-            fileSize: response.data.fileSize || 0,
-            metadata: response.data.metadata || {},
-            createdAt: response.data.createdAt || new Date().toISOString(),
-            updatedAt: response.data.updatedAt || new Date().toISOString(),
-          };
-        } else {
-          // Create a minimal asset object if response doesn't match expected format
-          asset = {
-            id: 0,
-            filename: fileName,
-            hash: '',
-            ext: path.extname(fileName).substring(1),
-            kind: 'image',
-            mime: 'image/png',
-            fileSize: 0,
-            metadata: {},
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-        }
-      } else {
-        // Fallback: create minimal asset object
-        asset = {
-          id: 0,
-          filename: fileName,
-          hash: '',
-          ext: path.extname(fileName).substring(1),
-          kind: 'image',
-          mime: 'image/png',
-          fileSize: 0,
-          metadata: {},
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+      // Handle the response - Wiki.js typically returns the uploaded asset info
+      if (response.data && response.data.succeeded !== false) {
+        const asset: WikiJsAsset = {
+          id: response.data.id || 0,
+          filename: response.data.filename || fileName,
+          hash: response.data.hash || '',
+          ext: response.data.ext || path.extname(fileName).substring(1),
+          kind: response.data.kind || 'image',
+          mime: response.data.mime || mimeType,
+          fileSize: response.data.fileSize || fileBuffer.length,
+          metadata: response.data.metadata || {},
+          createdAt: response.data.createdAt || new Date().toISOString(),
+          updatedAt: response.data.updatedAt || new Date().toISOString(),
         };
+        
+        console.log('Successfully uploaded asset:', asset);
+        return asset;
+      } else {
+        throw new Error(response.data?.message || 'Upload failed with unknown error');
       }
-      
-      console.log('Processed asset:', asset);
-      
-      // Try to get additional asset information from Wiki.js API
-      try {
-        const assetInfo = await this.getAssetByFilename(asset.filename);
-        if (assetInfo) {
-          console.log('Retrieved asset info from API:', assetInfo);
-          // Update asset with API information
-          asset = {
-            ...asset,
-            ...assetInfo,
-          };
-        }
-      } catch (apiError) {
-        console.log('Failed to retrieve asset info from API, using upload response data');
-      }
-      
-      return asset;
     } catch (error: any) {
       console.log('Upload error details:', {
         status: error.response?.status,
@@ -145,6 +107,30 @@ export class WikiJsClient {
         }
       });
       throw new Error(`Failed to upload asset ${fileName}: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get MIME type for a file based on its extension
+   */
+  private getMimeType(fileName: string): string {
+    const ext = path.extname(fileName).toLowerCase();
+    switch (ext) {
+      case '.jpg':
+      case '.jpeg':
+        return 'image/jpeg';
+      case '.png':
+        return 'image/png';
+      case '.gif':
+        return 'image/gif';
+      case '.svg':
+        return 'image/svg+xml';
+      case '.webp':
+        return 'image/webp';
+      case '.bmp':
+        return 'image/bmp';
+      default:
+        return 'image/png'; // fallback
     }
   }
 
