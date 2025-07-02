@@ -583,7 +583,10 @@ program
                 );
             
             // Check if page already exists
-            const existingPage = await wikiJsClient.getPageByPath(pagePath);
+            console.log(`🔍 Checking for existing page at path: "${pagePath}"`);
+            const existingPage = await wikiJsClient.getPageByPath(pagePath, namespace);
+            console.log(`📄 Existing page lookup result: ${existingPage ? `Found page with ID ${existingPage.id}` : 'No existing page found'}`);
+            
             
             // Handle existing page based on update flag
             if (existingPage && options.update === false) {
@@ -639,7 +642,7 @@ program
                 );
             
             // Check if page exists in dry-run mode
-            const existingPage = await wikiJsClient.getPageByPath(pagePath);
+            const existingPage = await wikiJsClient.getPageByPath(pagePath, namespace);
             
             if (existingPage && options.update === false) {
               console.log(`  ⏭️  Would skip existing page: /${pagePath} (use --update to overwrite)`);
@@ -876,7 +879,7 @@ program
           
           if (!options.dryRun) {
             // Check if page exists
-            const existingPage = await wikiJsClient.getPageByPath(pagePath);
+            const existingPage = await wikiJsClient.getPageByPath(pagePath, namespace);
             
             // Handle existing page based on update flag
             if (existingPage && options.update === false) {
@@ -910,7 +913,7 @@ program
             }
           } else {
             // Dry run - check if page exists
-            const existingPage = await wikiJsClient.getPageByPath(pagePath);
+            const existingPage = await wikiJsClient.getPageByPath(pagePath, namespace);
             
             if (existingPage && options.update === false) {
               console.log(`  ⏭️  Would skip existing page: /${pagePath} (use --update to overwrite)`);

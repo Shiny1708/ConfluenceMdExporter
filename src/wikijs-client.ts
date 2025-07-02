@@ -270,11 +270,11 @@ export class WikiJsClient {
   /**
    * Get page by path
    */
-  async getPageByPath(path: string): Promise<WikiJsPage | null> {
+  async getPageByPath(path: string, locale?: string): Promise<WikiJsPage | null> {
     const query = `
-      query ($path: String!) {
+      query ($path: String!, $locale: String!) {
         pages {
-          single(path: $path) {
+          singleByPath(path: $path, locale: $locale) {
             id
             path
             hash
@@ -295,18 +295,37 @@ export class WikiJsClient {
       }
     `;
 
+    // Ensure path has leading slash
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    // Use provided locale or default from config
+    const queryLocale = locale || this.config.namespace || 'en';
+
+    console.log(`🔍 Querying Wiki.js for page at path: "${normalizedPath}" with locale: "${queryLocale}"`);
+    
     try {
       const response = await this.client.post('', {
         query,
-        variables: { path },
+        variables: { 
+          path: normalizedPath,
+          locale: queryLocale
+        },
+      });
+
+      console.log(`📊 Wiki.js getPageByPath response:`, {
+        hasErrors: !!response.data.errors,
+        errors: response.data.errors,
+        hasData: !!response.data.data?.pages?.singleByPath,
+        singlePage: response.data.data?.pages?.singleByPath?.id ? `Found page ID ${response.data.data.pages.singleByPath.id}` : 'No page found'
       });
 
       if (response.data.errors) {
+        console.log(`⚠️  Wiki.js query errors:`, response.data.errors);
         return null;
       }
 
-      return response.data.data.pages.single;
+      return response.data.data.pages.singleByPath;
     } catch (error) {
+      console.log(`❌ Error querying Wiki.js for page:`, error);
       return null;
     }
   }
