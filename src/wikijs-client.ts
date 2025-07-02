@@ -429,7 +429,7 @@ export class WikiJsClient {
   /**
    * Convert Confluence page path to Wiki.js compatible path
    */
-  static sanitizePagePath(title: string, spaceKey?: string): string {
+  static sanitizePagePath(title: string, spaceKey?: string, namespace?: string): string {
     // Sanitize the page title
     let path = WikiJsClient.sanitizePathSegment(title);
 
@@ -437,6 +437,11 @@ export class WikiJsClient {
     if (spaceKey) {
       const sanitizedSpaceKey = WikiJsClient.sanitizePathSegment(spaceKey);
       path = `${sanitizedSpaceKey}/${path}`;
+    }
+
+    // Prepend namespace if provided and different from default 'en'
+    if (namespace && namespace !== 'en') {
+      path = `${namespace}/${path}`;
     }
 
     return path;
@@ -471,8 +476,13 @@ export class WikiJsClient {
   /**
    * Create hierarchical page path from Confluence page ancestors
    */
-  static createHierarchicalPath(page: ConfluencePage, spaceKey?: string): string {
+  static createHierarchicalPath(page: ConfluencePage, spaceKey?: string, namespace?: string): string {
     const pathParts: string[] = [];
+    
+    // Add namespace as root if provided and different from default 'en'
+    if (namespace && namespace !== 'en') {
+      pathParts.push(namespace);
+    }
     
     // Add space key as root if provided
     if (spaceKey) {

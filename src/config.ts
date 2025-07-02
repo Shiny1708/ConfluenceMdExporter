@@ -44,5 +44,6 @@ export function loadWikiJsConfig(): WikiJsConfig {
     baseUrl: requiredEnvVars.baseUrl!,
     apiKey: requiredEnvVars.apiKey!,
     uploadPath: process.env.WIKIJS_UPLOAD_PATH || '/uploads',
+    namespace: process.env.WIKIJS_NAMESPACE || 'en',
   };
 }

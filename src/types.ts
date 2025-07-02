@@ -43,6 +43,7 @@ export interface WikiJsConfig {
   baseUrl: string;
   apiKey: string;
   uploadPath?: string;
+  namespace?: string;
 }
 
 export interface WikiJsAsset {

@@ -363,6 +363,8 @@ Add these variables to your `.env` file:
 WIKIJS_BASE_URL=https://your-wikijs-instance.com
 WIKIJS_API_KEY=your-wikijs-api-key
 WIKIJS_UPLOAD_PATH=/uploads
+# Set the Wiki.js namespace/locale (e.g., 'de' for German, 'fr' for French, 'en' for English)
+WIKIJS_NAMESPACE=en
 ```
 
 **Getting your Wiki.js API Key:**
@@ -371,25 +373,48 @@ WIKIJS_UPLOAD_PATH=/uploads
 3. Create a new API key with appropriate permissions
 4. Copy the key to your `.env` file
 
+**Namespace Configuration:**
+The `WIKIJS_NAMESPACE` variable controls both the locale of created pages and their path structure:
+- **Default**: `en` (English) - pages created in root namespace
+- **German**: `de` - pages created under `/de/` path with German locale
+- **French**: `fr` - pages created under `/fr/` path with French locale
+- **Custom**: Any valid locale code supported by your Wiki.js instance
+
 #### **Direct Confluence → Wiki.js Export**
 ```bash
 # Export entire Confluence space directly to Wiki.js
 npm start -- export-to-wikijs --space DEMO
 
+# Export to German namespace (configure WIKIJS_NAMESPACE=de in .env)
+npm start -- export-to-wikijs --space DEMO
+
+# Override namespace from command line
+npm start -- export-to-wikijs --space DEMO --namespace de
+
 # With custom settings
 npm start -- export-to-wikijs --space DEMO \
   --upload-path "/my-images" \
   --page-prefix "confluence" \
+  --namespace "fr" \
   --dry-run
 
 # Preview what would be uploaded (no actual changes)
 npm start -- export-to-wikijs --space DEMO --dry-run
 ```
 
+**Namespace Examples:**
+- With `WIKIJS_NAMESPACE=en` (default): Pages created at `/DEMO/page-title`
+- With `WIKIJS_NAMESPACE=de`: Pages created at `/de/DEMO/page-title`
+- With `WIKIJS_NAMESPACE=fr`: Pages created at `/fr/DEMO/page-title`
+- CLI override: `--namespace de` creates pages at `/de/DEMO/page-title`
+
 #### **Convert Existing Markdown to Wiki.js**
 ```bash
 # Convert single markdown file
 npm start -- convert-to-wikijs --input my-page.md --page-path "my-custom-path"
+
+# Convert with German namespace
+npm start -- convert-to-wikijs --input my-page.md --page-path "my-custom-path" --namespace de
 
 # Convert entire directory of markdown files
 npm start -- convert-to-wikijs --input ./exports/DEMO/

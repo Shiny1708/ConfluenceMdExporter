@@ -470,6 +470,7 @@ program
   .option('-s, --space <spaceKey>', 'Confluence space key')
   .option('--upload-path <path>', 'Wiki.js upload path for images', '/uploads')
   .option('--page-prefix <prefix>', 'Prefix for Wiki.js page paths')
+  .option('--namespace <namespace>', 'Wiki.js namespace/locale (e.g., "de" for German, "fr" for French)')
   .option('--html-tables', 'Preserve tables as HTML instead of converting to markdown')
   .option('--preserve-hierarchy', 'Preserve Confluence page hierarchy in Wiki.js paths')
   .option('--create-navigation', 'Create Wiki.js navigation from page hierarchy')
@@ -482,6 +483,9 @@ program
       const wikiJsConfig = loadWikiJsConfig();
       const spaceKey = options.space || config.spaceKey;
 
+      // Override namespace from CLI option if provided
+      const namespace = options.namespace || wikiJsConfig.namespace;
+
       if (!spaceKey) {
         console.error('Error: Space key is required. Use --space option or set SPACE_KEY in .env file');
         process.exit(1);
@@ -491,6 +495,7 @@ program
       console.log(`📡 Confluence: ${config.baseUrl}`);
       console.log(`📚 Wiki.js: ${wikiJsConfig.baseUrl}`);
       console.log(`📁 Upload path: ${options.uploadPath}`);
+      console.log(`🌐 Namespace: ${namespace}`);
       
       // Show image processing mode
       if (options.uploadImages) {
@@ -564,10 +569,11 @@ program
             
             // Generate Wiki.js page path (preserve hierarchy if requested)
             const pagePath = options.preserveHierarchy 
-              ? (await import('./wikijs-client')).WikiJsClient.createHierarchicalPath(page, options.pagePrefix || spaceKey)
+              ? (await import('./wikijs-client')).WikiJsClient.createHierarchicalPath(page, options.pagePrefix || spaceKey, namespace)
               : (await import('./wikijs-client')).WikiJsClient.sanitizePagePath(
                   page.title, 
-                  options.pagePrefix || spaceKey
+                  options.pagePrefix || spaceKey,
+                  namespace
                 );
             
             // Check if page already exists
@@ -579,7 +585,7 @@ program
               content: wikiJsMarkdown,
               contentType: 'markdown',
               editor: markdownEditor.key,
-              locale: 'en',
+              locale: namespace || 'en',
               isPublished: true,
               tags: [spaceKey.toLowerCase(), 'confluence-import'],
               description: `Imported from Confluence page ${page.id}`,
@@ -607,10 +613,11 @@ program
             // Dry run - just show what would happen
             const wikiJsMarkdown = converter.convertToWikiJsMarkdown(markdown);
             const pagePath = options.preserveHierarchy 
-              ? (await import('./wikijs-client')).WikiJsClient.createHierarchicalPath(page, options.pagePrefix || spaceKey)
+              ? (await import('./wikijs-client')).WikiJsClient.createHierarchicalPath(page, options.pagePrefix || spaceKey, namespace)
               : (await import('./wikijs-client')).WikiJsClient.sanitizePagePath(
                   page.title, 
-                  options.pagePrefix || spaceKey
+                  options.pagePrefix || spaceKey,
+                  namespace
                 );
             
             console.log(`  📋 Would create/update: /${pagePath}`);
@@ -695,6 +702,7 @@ program
   .description('Convert exported markdown files to Wiki.js and upload')
   .option('-i, --input <mdFile>', 'Input markdown file or directory')
   .option('-p, --page-path <path>', 'Wiki.js page path (for single file)')
+  .option('--namespace <namespace>', 'Wiki.js namespace/locale (e.g., "de" for German, "fr" for French)')
   .option('--upload-images', 'Upload images to Wiki.js')
   .option('--upload-path <path>', 'Wiki.js upload path for images', '/uploads')
   .option('--dry-run', 'Preview without uploading')
@@ -703,6 +711,9 @@ program
       const wikiJsConfig = loadWikiJsConfig();
       const inputPath = options.input;
 
+      // Override namespace from CLI option if provided
+      const namespace = options.namespace || wikiJsConfig.namespace;
+
       if (!inputPath) {
         console.error('Error: Input file or directory is required. Use --input option');
         process.exit(1);
@@ -710,6 +721,7 @@ program
 
       console.log(`📚 Converting to Wiki.js format`);
       console.log(`📡 Wiki.js: ${wikiJsConfig.baseUrl}`);
+      console.log(`🌐 Namespace: ${namespace}`);
 
       const wikiJsClient = new (await import('./wikijs-client')).WikiJsClient(wikiJsConfig);
       const converter = new MarkdownConverter();
@@ -838,7 +850,7 @@ program
               content: wikiJsMarkdown,
               contentType: 'markdown',
               editor: markdownEditor.key,
-              locale: 'en',
+              locale: namespace || 'en',
               isPublished: true,
               tags: ['markdown-import'],
               description: `Imported from ${fileName}.md`,
