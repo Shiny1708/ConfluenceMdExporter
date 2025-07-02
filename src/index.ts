@@ -488,7 +488,10 @@ program
       const spaceKey = options.space || config.spaceKey;
 
       // Override namespace from CLI option if provided
-      const namespace = options.namespace || wikiJsConfig.namespace;
+      const namespace = (options.namespace || wikiJsConfig.namespace).trim();
+      
+      // Debug: Show namespace value and length
+      console.log(`🌐 Namespace debug: value="${namespace}", length=${namespace.length}, has leading space: ${namespace !== namespace.trimStart()}, has trailing space: ${namespace !== namespace.trimEnd()}`);
 
       if (!spaceKey) {
         console.error('Error: Space key is required. Use --space option or set SPACE_KEY in .env file');
@@ -748,7 +751,7 @@ program
       const inputPath = options.input;
 
       // Override namespace from CLI option if provided
-      const namespace = options.namespace || wikiJsConfig.namespace;
+      const namespace = (options.namespace || wikiJsConfig.namespace).trim();
 
       if (!inputPath) {
         console.error('Error: Input file or directory is required. Use --input option');

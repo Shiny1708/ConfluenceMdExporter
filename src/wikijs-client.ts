@@ -298,7 +298,7 @@ export class WikiJsClient {
     // Ensure path does NOT have leading slash
     const normalizedPath = path.startsWith('/') ? path.substring(1) : path;
     // Use provided locale or default from config
-    const queryLocale = locale || this.config.namespace || 'en';
+    const queryLocale = (locale || this.config.namespace || 'en').trim();
 
     console.log(`🔍 Querying Wiki.js for page at path: "${normalizedPath}" with locale: "${queryLocale}"`);
     
@@ -459,8 +459,8 @@ export class WikiJsClient {
     }
 
     // Prepend namespace if provided and different from default 'en'
-    if (namespace && namespace !== 'en') {
-      path = `${namespace}/${path}`;
+    if (namespace && namespace.trim() !== 'en') {
+      path = `${namespace.trim()}/${path}`;
     }
 
     return path;
@@ -499,8 +499,8 @@ export class WikiJsClient {
     const pathParts: string[] = [];
     
     // Add namespace as root if provided and different from default 'en'
-    if (namespace && namespace !== 'en') {
-      pathParts.push(namespace);
+    if (namespace && namespace.trim() !== 'en') {
+      pathParts.push(namespace.trim());
     }
     
     // Add space key as root if provided
