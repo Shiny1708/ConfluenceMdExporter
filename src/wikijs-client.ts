@@ -244,11 +244,18 @@ export class WikiJsClient {
     `;
 
     try {
+      // Ensure required fields have default values to prevent null errors
+      const safeUpdates = {
+        ...updates,
+        // Override with provided editor or default to markdown
+        editor: updates.editor || 'markdown',
+      };
+      
       const response = await this.client.post('', {
         query: mutation,
         variables: {
           id: pageId,
-          ...updates,
+          ...safeUpdates,
         },
       });
 
