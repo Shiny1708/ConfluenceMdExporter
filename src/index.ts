@@ -32,6 +32,7 @@ program
   .option('-s, --space <spaceKey>', 'Confluence space key')
   .option('-o, --output <directory>', 'Output directory')
   .option('--download-images', 'Download and save images locally')
+  .option('--html-tables', 'Preserve tables as HTML instead of converting to markdown')
   .action(async (options) => {
     try {
       const config = loadConfigWithOptions(program.opts());
@@ -70,7 +71,9 @@ program
         console.log(`Converting page ${i + 1}/${pages.length}: ${page.title}`);
         
         try {
-          const filePath = await converter.convertPageToFile(page, spaceOutputDir, config.baseUrl);
+          const filePath = await converter.convertPageToFile(page, spaceOutputDir, config.baseUrl, {
+            preserveHtmlTables: options.htmlTables
+          });
           console.log(`  → Saved to: ${filePath}`);
           
           // Download images if requested
@@ -104,6 +107,7 @@ program
   .option('-p, --page <pageId>', 'Confluence page ID')
   .option('-o, --output <directory>', 'Output directory')
   .option('--download-images', 'Download and save images locally')
+  .option('--html-tables', 'Preserve tables as HTML instead of converting to markdown')
   .action(async (options, command) => {
     try {
       console.log('=== DEBUG INFO ===');
@@ -141,7 +145,9 @@ program
       console.log(`Found page: ${page.title}`);
 
       // Convert the page
-      const filePath = await converter.convertPageToFile(page, outputDir, config.baseUrl);
+      const filePath = await converter.convertPageToFile(page, outputDir, config.baseUrl, {
+        preserveHtmlTables: options.htmlTables
+      });
       console.log(`Saved to: ${filePath}`);
       
       // Download images if requested
@@ -225,6 +231,7 @@ program
   .option('-i, --input <htmlFile>', 'Input HTML file path')
   .option('-o, --output <mdFile>', 'Output Markdown file path (optional)')
   .option('-t, --title <title>', 'Page title for metadata (optional)')
+  .option('--html-tables', 'Preserve tables as HTML instead of converting to markdown')
   .option('--debug', 'Enable debug mode with verbose output')
   .action(async (options) => {
     try {
@@ -259,7 +266,9 @@ program
       }
       
       const converter = new MarkdownConverter();
-      const markdown = converter.convertToMarkdown(htmlContent);
+      const markdown = converter.convertToMarkdown(htmlContent, { 
+        preserveHtmlTables: options.htmlTables 
+      });
 
       if (options.debug) {
         console.log(`📝 Markdown content length: ${markdown.length} characters`);
@@ -460,6 +469,7 @@ program
   .option('-s, --space <spaceKey>', 'Confluence space key')
   .option('--upload-path <path>', 'Wiki.js upload path for images', '/uploads')
   .option('--page-prefix <prefix>', 'Prefix for Wiki.js page paths')
+  .option('--html-tables', 'Preserve tables as HTML instead of converting to markdown')
   .option('--dry-run', 'Preview what would be uploaded without actually doing it')
   .action(async (options) => {
     try {
@@ -501,7 +511,10 @@ program
         
         try {
           // Convert to markdown
-          let markdown = converter.convertToMarkdown(page.body.storage.value, page.id);
+          let markdown = converter.convertToMarkdown(page.body.storage.value, { 
+            pageId: page.id,
+            preserveHtmlTables: options.htmlTables 
+          });
           
           // Convert relative image URLs to absolute
           markdown = converter.convertImageUrls(markdown, config.baseUrl);

@@ -3,8 +3,14 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ConfluencePage } from './types';
 
+export interface ConversionOptions {
+  preserveHtmlTables?: boolean;
+  pageId?: string;
+}
+
 export class MarkdownConverter {
   private turndownService: TurndownService;
+  private htmlTableTurndownService: TurndownService;
 
   constructor() {
     this.turndownService = new TurndownService({
@@ -15,21 +21,49 @@ export class MarkdownConverter {
       fence: '```',
     });
 
+    // Create a separate service for HTML table preservation
+    this.htmlTableTurndownService = new TurndownService({
+      headingStyle: 'atx',
+      hr: '---',
+      bulletListMarker: '-',
+      codeBlockStyle: 'fenced',
+      fence: '```',
+    });
+
     // Add custom rules for Confluence-specific elements
     this.setupCustomRules();
+    this.setupHtmlTableRules();
   }
 
   private setupCustomRules(): void {
     this.applyCustomRules(this.turndownService, '```');
   }
 
+  private setupHtmlTableRules(): void {
+    this.applyCustomRules(this.htmlTableTurndownService, '```');
+    this.applyHtmlTableRules(this.htmlTableTurndownService);
+  }
+
   /**
    * Convert HTML content to Markdown
    */
-  convertToMarkdown(html: string, pageId?: string): string {
+  convertToMarkdown(html: string, options?: ConversionOptions): string;
+  convertToMarkdown(html: string, pageId?: string): string;
+  convertToMarkdown(html: string, optionsOrPageId?: ConversionOptions | string): string {
+    // Handle backward compatibility
+    let options: ConversionOptions;
+    if (typeof optionsOrPageId === 'string') {
+      options = { pageId: optionsOrPageId };
+    } else {
+      options = optionsOrPageId || {};
+    }
+
     // Pre-process HTML to handle Confluence-specific elements
-    const processedHtml = this.preprocessConfluenceHtml(html, pageId);
-    return this.turndownService.turndown(processedHtml);
+    const processedHtml = this.preprocessConfluenceHtml(html, options.pageId);
+    
+    // Choose the appropriate conversion service
+    const service = options.preserveHtmlTables ? this.htmlTableTurndownService : this.turndownService;
+    return service.turndown(processedHtml);
   }
 
   /**
@@ -152,8 +186,16 @@ export class MarkdownConverter {
   /**
    * Convert a Confluence page to Markdown and save to file
    */
-  async convertPageToFile(page: ConfluencePage, outputDir: string, confluenceBaseUrl?: string): Promise<string> {
-    let markdown = this.convertToMarkdown(page.body.storage.value, page.id);
+  async convertPageToFile(
+    page: ConfluencePage, 
+    outputDir: string, 
+    confluenceBaseUrl?: string, 
+    options?: ConversionOptions
+  ): Promise<string> {
+    let markdown = this.convertToMarkdown(page.body.storage.value, {
+      pageId: page.id,
+      preserveHtmlTables: options?.preserveHtmlTables
+    });
     
     // Convert relative image URLs to absolute if base URL is provided
     if (confluenceBaseUrl) {
@@ -373,18 +415,47 @@ export class MarkdownConverter {
         const cells = Array.from(node.children || []).map((child: any) => {
           const cellContent = child.textContent || child.innerText || '';
           const trimmed = cellContent.trim();
-          // Use a single space for empty cells to ensure proper table formatting
-          return trimmed || ' ';
+          
+          // Check for styling information
+          const style = child.getAttribute('style') || '';
+          const bgColorMatch = style.match(/background-color:\s*([^;]+)/i);
+          let cellText = trimmed || ' ';
+          
+          // Add simplified styling information
+          if (bgColorMatch) {
+            const bgColor = bgColorMatch[1].trim();
+            // Convert RGB colors to more readable format
+            const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+            if (rgbMatch) {
+              const [, r, g, b] = rgbMatch;
+              // Determine color meaning based on common Confluence status colors
+              let colorName = this.getColorName(parseInt(r), parseInt(g), parseInt(b));
+              if (colorName) {
+                cellText = `${cellText} {.${colorName}}`;
+              } else {
+                cellText = `${cellText} {.color-${r}-${g}-${b}}`;
+              }
+            } else {
+              // Handle named colors or hex colors
+              cellText = `${cellText} {.bg-${bgColor.replace(/[^a-zA-Z0-9]/g, '-')}}`;
+            }
+          }
+          
+          return cellText;
         });
         
         const row = '| ' + cells.join(' | ') + ' |';
         
-        // Check if this is a header row (contains th elements)
+        // Check if this is the FIRST row that contains th elements (true header row)
         const isHeaderRow = Array.from(node.children || []).some((child: any) => 
           child.nodeName?.toLowerCase() === 'th'
         );
         
-        if (isHeaderRow) {
+        // Only add separator for the first header row (check if this is the first row in the table)
+        const isFirstRow = node.parentElement?.firstElementChild === node ||
+                          node.parentElement?.parentElement?.firstElementChild?.firstElementChild === node;
+        
+        if (isHeaderRow && isFirstRow) {
           // Create separator with proper spacing
           const separator = '\n| ' + Array(cells.length).fill('---').join(' | ') + ' |';
           return row + separator + '\n';
@@ -731,7 +802,12 @@ export class MarkdownConverter {
   /**
    * Enable debug mode to save raw HTML and intermediate conversions
    */
-  async convertPageToFileWithDebug(page: ConfluencePage, outputDir: string, confluenceBaseUrl?: string): Promise<string> {
+  async convertPageToFileWithDebug(
+    page: ConfluencePage, 
+    outputDir: string, 
+    confluenceBaseUrl?: string, 
+    options?: ConversionOptions
+  ): Promise<string> {
     const debugDir = path.join(outputDir, 'debug');
     await fs.mkdir(debugDir, { recursive: true });
     
@@ -741,7 +817,7 @@ export class MarkdownConverter {
     console.log(`🐛 Debug: Raw HTML saved to ${htmlFile}`);
     
     // Convert and save markdown
-    const result = await this.convertPageToFile(page, outputDir, confluenceBaseUrl);
+    const result = await this.convertPageToFile(page, outputDir, confluenceBaseUrl, options);
     
     return result;
   }
@@ -769,7 +845,7 @@ export class MarkdownConverter {
       }
     );
     
-    // Handle Confluence table cell classes and styling
+    // Handle Confluence table cell classes but preserve styling attributes
     processedHtml = processedHtml.replace(
       /<(th|td)([^>]*?)class="[^"]*confluenceT[hd][^"]*"([^>]*?)>/gi,
       '<$1$2$3>'
@@ -787,7 +863,7 @@ export class MarkdownConverter {
       ''
     );
     
-    // Clean up extra whitespace in table cells
+    // Clean up extra whitespace in table cells while preserving style attributes
     processedHtml = processedHtml.replace(
       /<(th|td)([^>]*?)>\s*([^<]*?)\s*<\/\1>/gi,
       '<$1$2>$3</$1>'
@@ -831,5 +907,66 @@ export class MarkdownConverter {
     console.log('Output Markdown:', markdown);
     
     return markdown;
+  }
+
+  /**
+   * Convert RGB values to meaningful color names based on common Confluence status colors
+   */
+  private getColorName(r: number, g: number, b: number): string | null {
+    // Common Confluence status colors
+    if (r >= 220 && g >= 240 && b >= 200) return 'success'; // Light green
+    if (r >= 250 && g >= 240 && b >= 160) return 'warning'; // Light yellow
+    if (r >= 250 && g >= 230 && b >= 220) return 'error';   // Light red/pink
+    if (r >= 240 && g >= 240 && b >= 240) return 'neutral'; // Light gray
+    if (r >= 220 && g >= 240 && b >= 250) return 'info';    // Light blue
+    
+    return null; // Unknown color pattern
+  }
+
+  private applyHtmlTableRules(service: TurndownService): void {
+    // Override table rules to preserve HTML tables instead of converting to markdown
+    service.addRule('preserveHtmlTable', {
+      filter: ['table'],
+      replacement: (content: any, node: any) => {
+        // Clean up the HTML table while preserving styling
+        const tableHtml = this.cleanTableHtml(node.outerHTML);
+        return `\n\n${tableHtml}\n\n`;
+      },
+    });
+
+    // Remove individual table element rules so they don't interfere
+    service.remove(['th', 'td', 'tr', 'thead', 'tbody', 'tfoot']);
+  }
+
+  private cleanTableHtml(tableHtml: string): string {
+    let cleanHtml = tableHtml;
+    
+    // Remove Confluence-specific classes but keep styling
+    cleanHtml = cleanHtml.replace(/class="[^"]*confluenceT[hd][^"]*"/gi, '');
+    cleanHtml = cleanHtml.replace(/class="[^"]*confluenceTable[^"]*"/gi, '');
+    
+    // Format the HTML nicely with proper indentation
+    cleanHtml = cleanHtml.replace(/></g, '>\n<');
+    cleanHtml = cleanHtml.replace(/<table[^>]*>/gi, match => `${match}\n`);
+    cleanHtml = cleanHtml.replace(/<\/table>/gi, '\n</table>');
+    cleanHtml = cleanHtml.replace(/<tr[^>]*>/gi, match => `  ${match}\n`);
+    cleanHtml = cleanHtml.replace(/<\/tr>/gi, '\n  </tr>');
+    cleanHtml = cleanHtml.replace(/<(th|td)[^>]*>/gi, match => `    ${match}`);
+    cleanHtml = cleanHtml.replace(/<\/(th|td)>/gi, match => `${match}\n`);
+    
+    // Clean up extra whitespace
+    cleanHtml = cleanHtml.replace(/\n\s*\n/g, '\n');
+    cleanHtml = cleanHtml.trim();
+    
+    // Add some basic styling if none exists
+    if (!cleanHtml.includes('style=') && !cleanHtml.includes('<style>')) {
+      cleanHtml = cleanHtml.replace('<table', '<table style="border-collapse: collapse; width: 100%;"');
+      
+      // Add basic cell styling
+      cleanHtml = cleanHtml.replace(/<(th|td)(?![^>]*style=)/g, '<$1 style="border: 1px solid #ddd; padding: 8px;"');
+      cleanHtml = cleanHtml.replace(/<th(?![^>]*style=)/g, '<th style="border: 1px solid #ddd; padding: 8px; background-color: #f5f5f5; font-weight: bold;"');
+    }
+    
+    return cleanHtml;
   }
 }
