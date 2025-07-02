@@ -430,17 +430,13 @@ export class WikiJsClient {
    * Convert Confluence page path to Wiki.js compatible path
    */
   static sanitizePagePath(title: string, spaceKey?: string): string {
-    // Convert to lowercase, replace spaces and special chars with hyphens
-    let path = title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
+    // Sanitize the page title
+    let path = WikiJsClient.sanitizePathSegment(title);
 
     // Prepend space key if provided
     if (spaceKey) {
-      path = `${spaceKey.toLowerCase()}/${path}`;
+      const sanitizedSpaceKey = WikiJsClient.sanitizePathSegment(spaceKey);
+      path = `${sanitizedSpaceKey}/${path}`;
     }
 
     return path;
@@ -480,29 +476,19 @@ export class WikiJsClient {
     
     // Add space key as root if provided
     if (spaceKey) {
-      pathParts.push(spaceKey.toLowerCase());
+      pathParts.push(WikiJsClient.sanitizePathSegment(spaceKey));
     }
     
     // Add ancestor paths (parent to child order)
     if (page.ancestors && page.ancestors.length > 0) {
       const ancestorPaths = page.ancestors.map((ancestor: ConfluencePageAncestor) => 
-        ancestor.title
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '')
-          .replace(/\s+/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '')
+        WikiJsClient.sanitizePathSegment(ancestor.title)
       );
       pathParts.push(...ancestorPaths);
     }
     
     // Add the page itself
-    const pagePath = page.title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
+    const pagePath = WikiJsClient.sanitizePathSegment(page.title);
     
     pathParts.push(pagePath);
     
@@ -585,6 +571,49 @@ export class WikiJsClient {
       console.error('Failed to create navigation:', error);
       throw error;
     }
+  }
+
+  /**
+   * Safely sanitize text for URL paths while preserving international characters
+   */
+  private static sanitizePathSegment(text: string): string {
+    // Handle German umlauts and common special characters
+    const transliterations: { [key: string]: string } = {
+      'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss',
+      'Ä': 'Ae', 'Ö': 'Oe', 'Ü': 'Ue',
+      'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'å': 'a',
+      'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
+      'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
+      'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o',
+      'ù': 'u', 'ú': 'u', 'û': 'u',
+      'ç': 'c', 'ñ': 'n',
+      'À': 'A', 'Á': 'A', 'Â': 'A', 'Ã': 'A', 'Å': 'A',
+      'È': 'E', 'É': 'E', 'Ê': 'E', 'Ë': 'E',
+      'Ì': 'I', 'Í': 'I', 'Î': 'I', 'Ï': 'I',
+      'Ò': 'O', 'Ó': 'O', 'Ô': 'O', 'Õ': 'O',
+      'Ù': 'U', 'Ú': 'U', 'Û': 'U',
+      'Ç': 'C', 'Ñ': 'N'
+    };
+    
+    let sanitized = text;
+    
+    // Apply transliterations for common special characters
+    Object.entries(transliterations).forEach(([from, to]) => {
+      sanitized = sanitized.replace(new RegExp(from, 'g'), to);
+    });
+    
+    // Convert to lowercase
+    sanitized = sanitized.toLowerCase();
+    
+    // Replace spaces and unsafe URL characters with hyphens
+    // Keep: letters (including extended Latin), numbers, hyphens, underscores
+    sanitized = sanitized
+      .replace(/[\s\/\\:*?"<>|]+/g, '-')  // Replace unsafe chars and spaces with hyphens
+      .replace(/[^\w\-]/g, '')           // Remove remaining special chars (keeping word chars and hyphens)
+      .replace(/-+/g, '-')               // Collapse multiple hyphens
+      .replace(/^-|-$/g, '');            // Remove leading/trailing hyphens
+    
+    return sanitized;
   }
 
 }
