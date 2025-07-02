@@ -577,12 +577,13 @@ program
             const wikiJsMarkdown = converter.convertToWikiJsMarkdown(updatedMarkdown);
             
             // Generate Wiki.js page path (preserve hierarchy if requested)
+            // Note: Don't include namespace in path since it's set as locale
             const pagePath = options.preserveHierarchy 
-              ? (await import('./wikijs-client')).WikiJsClient.createHierarchicalPath(page, options.pagePrefix || spaceKey, namespace)
+              ? (await import('./wikijs-client')).WikiJsClient.createHierarchicalPath(page, options.pagePrefix || spaceKey, undefined)
               : (await import('./wikijs-client')).WikiJsClient.sanitizePagePath(
                   page.title, 
                   options.pagePrefix || spaceKey,
-                  namespace
+                  undefined
                 );
             
             // Check if page already exists
@@ -636,12 +637,13 @@ program
           } else {
             // Dry run - just show what would happen
             const wikiJsMarkdown = converter.convertToWikiJsMarkdown(markdown);
+            // Note: Don't include namespace in path since it's set as locale
             const pagePath = options.preserveHierarchy 
-              ? (await import('./wikijs-client')).WikiJsClient.createHierarchicalPath(page, options.pagePrefix || spaceKey, namespace)
+              ? (await import('./wikijs-client')).WikiJsClient.createHierarchicalPath(page, options.pagePrefix || spaceKey, undefined)
               : (await import('./wikijs-client')).WikiJsClient.sanitizePagePath(
                   page.title, 
                   options.pagePrefix || spaceKey,
-                  namespace
+                  undefined
                 );
             
             // Check if page exists in dry-run mode
