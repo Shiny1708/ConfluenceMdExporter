@@ -473,6 +473,8 @@ program
   .option('--html-tables', 'Preserve tables as HTML instead of converting to markdown')
   .option('--preserve-hierarchy', 'Preserve Confluence page hierarchy in Wiki.js paths')
   .option('--create-navigation', 'Create Wiki.js navigation from page hierarchy')
+  .option('--upload-images', 'Download images from Confluence and upload to Wiki.js')
+  .option('--skip-images', 'Skip image processing entirely (faster but no images)')
   .option('--dry-run', 'Preview what would be uploaded without actually doing it')
   .action(async (options) => {
     try {
@@ -489,6 +491,15 @@ program
       console.log(`📡 Confluence: ${config.baseUrl}`);
       console.log(`📚 Wiki.js: ${wikiJsConfig.baseUrl}`);
       console.log(`📁 Upload path: ${options.uploadPath}`);
+      
+      // Show image processing mode
+      if (options.uploadImages) {
+        console.log(`🖼️  Image mode: Download from Confluence and upload to Wiki.js`);
+      } else if (options.skipImages) {
+        console.log(`⏭️  Image mode: Skip all images (faster export)`);
+      } else {
+        console.log(`📋 Image mode: Default (use --upload-images to upload to Wiki.js)`);
+      }
 
       const confluenceClient = new ConfluenceClient(config);
       const wikiJsClient = new (await import('./wikijs-client')).WikiJsClient(wikiJsConfig);
@@ -523,16 +534,30 @@ program
           markdown = converter.convertImageUrls(markdown, config.baseUrl);
           
           if (!options.dryRun) {
-            // Process images for Wiki.js
-            const authHeader = `Basic ${Buffer.from(`${config.username}:${config.password}`).toString('base64')}`;
-            const { markdown: updatedMarkdown, uploadedAssets } = await converter.processImagesForWikiJs(
-              markdown,
-              tempImagesDir,
-              config.baseUrl,
-              authHeader,
-              wikiJsClient,
-              options.uploadPath
-            );
+            let updatedMarkdown = markdown;
+            let uploadedAssets: any[] = [];
+            
+            // Process images for Wiki.js only if requested and not explicitly skipped
+            if (options.uploadImages && !options.skipImages) {
+              console.log(`  🖼️  Processing images for Wiki.js upload...`);
+              const authHeader = `Basic ${Buffer.from(`${config.username}:${config.password}`).toString('base64')}`;
+              const result = await converter.processImagesForWikiJs(
+                markdown,
+                tempImagesDir,
+                config.baseUrl,
+                authHeader,
+                wikiJsClient,
+                options.uploadPath
+              );
+              updatedMarkdown = result.markdown;
+              uploadedAssets = result.uploadedAssets;
+            } else if (options.skipImages) {
+              console.log(`  ⏭️  Skipping image processing as requested`);
+              // Remove image references from markdown
+              updatedMarkdown = markdown.replace(/!\[([^\]]*)\]\([^)]+\)/g, '<!-- Image removed: $1 -->');
+            } else {
+              console.log(`  📋 Images will be processed with default behavior (use --upload-images to upload to Wiki.js)`);
+            }
             
             // Convert to Wiki.js compatible markdown
             const wikiJsMarkdown = converter.convertToWikiJsMarkdown(updatedMarkdown);
@@ -591,9 +616,15 @@ program
             console.log(`  📋 Would create/update: /${pagePath}`);
             console.log(`  📊 Content length: ${wikiJsMarkdown.length} characters`);
             
-            // Count images that would be uploaded
+            // Count images that would be processed
             const imageCount = (markdown.match(/!\[([^\]]*)\]\(([^)]+)\)/g) || []).length;
-            console.log(`  🖼️  Would process ${imageCount} images`);
+            if (options.uploadImages && !options.skipImages) {
+              console.log(`  🖼️  Would upload ${imageCount} images to Wiki.js`);
+            } else if (options.skipImages) {
+              console.log(`  ⏭️  Would skip ${imageCount} images`);
+            } else {
+              console.log(`  🖼️  Found ${imageCount} images (use --upload-images to upload to Wiki.js)`);
+            }
           }
           
         } catch (error) {
