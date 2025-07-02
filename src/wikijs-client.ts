@@ -295,8 +295,8 @@ export class WikiJsClient {
       }
     `;
 
-    // Ensure path has leading slash
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    // Ensure path does NOT have leading slash
+    const normalizedPath = path.startsWith('/') ? path.substring(1) : path;
     // Use provided locale or default from config
     const queryLocale = locale || this.config.namespace || 'en';
 
