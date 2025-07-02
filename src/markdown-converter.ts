@@ -576,31 +576,51 @@ export class MarkdownConverter {
     await fs.mkdir(imageDir, { recursive: true });
     console.log(`📁 Created/verified images directory: ${imageDir}`);
     
-    // Fixed regex to properly parse image URLs and ignore title attributes
-    const imageRegex = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
     let updatedMarkdown = markdown;
-    let match;
     let downloadCount = 0;
     
     console.log(`🔍 Searching for images in markdown...`);
     console.log(`📝 Markdown length: ${markdown.length} characters`);
     
-    // First, let's see what images we find
-    const allMatches = [];
-    // Use a fresh regex for this scan to avoid lastIndex issues
-    const scanRegex = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-    while ((match = scanRegex.exec(markdown)) !== null) {
-      allMatches.push(match);
+    // Find both markdown images and HTML img tags
+    const markdownImageRegex = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+    const htmlImageRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/g;
+    
+    const allImages = [];
+    let match;
+    
+    // Find markdown images
+    while ((match = markdownImageRegex.exec(markdown)) !== null) {
+      allImages.push({
+        type: 'markdown',
+        fullMatch: match[0],
+        alt: match[1],
+        url: match[2],
+        originalMatch: match
+      });
     }
-    console.log(`🖼️  Found ${allMatches.length} image references total`);
     
-    // Reset regex
-    imageRegex.lastIndex = 0;
+    // Find HTML img tags
+    markdownImageRegex.lastIndex = 0; // Reset regex
+    while ((match = htmlImageRegex.exec(markdown)) !== null) {
+      // Extract alt text from HTML img tag
+      const altMatch = match[0].match(/alt=["']([^"']*)["']/);
+      allImages.push({
+        type: 'html',
+        fullMatch: match[0],
+        alt: altMatch ? altMatch[1] : '',
+        url: match[1],
+        originalMatch: match
+      });
+    }
     
-    while ((match = imageRegex.exec(markdown)) !== null) {
-      const [fullMatch, alt, url] = match;
+    console.log(`🖼️  Found ${allImages.length} image references total (markdown + HTML)`);
+    
+    // Process each image
+    for (const image of allImages) {
+      const { type, fullMatch, alt, url } = image;
       
-      console.log(`\n  📷 Processing image:`);
+      console.log(`\n  📷 Processing ${type} image:`);
       console.log(`    Alt text: "${alt}"`);
       console.log(`    URL: "${url}"`);
       
@@ -661,10 +681,19 @@ export class MarkdownConverter {
         const stats = await fs.stat(localPath);
         console.log(`  📁 File verification: ${stats.size} bytes on disk`);
         
-        // Update markdown to use local path with sanitized filename
-        updatedMarkdown = updatedMarkdown.replace(fullMatch, `![${alt}](${relativePath})`);
+        // Update markdown/HTML to use local path with sanitized filename
+        if (type === 'markdown') {
+          // Replace markdown image
+          updatedMarkdown = updatedMarkdown.replace(fullMatch, `![${alt}](${relativePath})`);
+          console.log(`  🔄 Updated markdown link to: ![${alt}](${relativePath})`);
+        } else {
+          // Replace HTML img tag - update src attribute
+          const updatedImgTag = fullMatch.replace(/src=["'][^"']+["']/, `src="${relativePath}"`);
+          updatedMarkdown = updatedMarkdown.replace(fullMatch, updatedImgTag);
+          console.log(`  🔄 Updated HTML img src to: ${relativePath}`);
+        }
+        
         downloadCount++;
-        console.log(`  🔄 Updated markdown link to: ![${alt}](${relativePath})`);
         
       } catch (error: any) {
         console.error(`  ❌ Failed to download image ${url}:`);
@@ -681,7 +710,7 @@ export class MarkdownConverter {
     }
     
     console.log(`\n📊 Image download summary:`);
-    console.log(`  Total images found: ${allMatches.length}`);
+    console.log(`  Total images found: ${allImages.length}`);
     console.log(`  Images downloaded: ${downloadCount}`);
     console.log(`  Images directory: ${imageDir}`);
     
