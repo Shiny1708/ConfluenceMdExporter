@@ -941,6 +941,9 @@ export class MarkdownConverter {
   private cleanTableHtml(tableHtml: string): string {
     let cleanHtml = tableHtml;
     
+    // Convert Confluence highlight classes and data attributes to inline background-color styles
+    cleanHtml = this.convertConfluenceHighlights(cleanHtml);
+    
     // Remove only Confluence-specific classes but preserve all other attributes including style
     cleanHtml = cleanHtml.replace(/\s*class="[^"]*confluenceT[hd][^"]*"/gi, '');
     cleanHtml = cleanHtml.replace(/\s*class="[^"]*confluenceTable[^"]*"/gi, '');
@@ -949,10 +952,18 @@ export class MarkdownConverter {
     cleanHtml = cleanHtml.replace(/class="([^"]*)"/gi, (match, classes) => {
       const filteredClasses = classes
         .split(/\s+/)
-        .filter((cls: string) => !cls.toLowerCase().includes('confluence'))
+        .filter((cls: string) => !cls.toLowerCase().includes('confluence') && !cls.startsWith('highlight-'))
         .join(' ');
       return filteredClasses ? `class="${filteredClasses}"` : '';
     });
+    
+    // Clean up empty class attributes and data-highlight-colour attributes
+    cleanHtml = cleanHtml.replace(/\s*class=""\s*/gi, ' ');
+    cleanHtml = cleanHtml.replace(/\s*data-highlight-colour="[^"]*"\s*/gi, ' ');
+    
+    // Clean up extra spaces in attributes
+    cleanHtml = cleanHtml.replace(/\s+/g, ' ');
+    cleanHtml = cleanHtml.replace(/\s+>/g, '>');
     
     // Format the HTML nicely with proper indentation while preserving content
     cleanHtml = cleanHtml.replace(/>\s*</g, '>\n<');
@@ -995,5 +1006,55 @@ export class MarkdownConverter {
     }
     
     return cleanHtml;
+  }
+
+  private convertConfluenceHighlights(html: string): string {
+    let result = html;
+    
+    // Convert highlight classes to inline background-color styles
+    // Pattern: class="highlight-#fff0b3" or data-highlight-colour="#fff0b3"
+    result = result.replace(/<(th|td)([^>]*?)>/gi, (match, tag, attrs) => {
+      let newAttrs = attrs;
+      let backgroundColor: string | null = null;
+      
+      // Extract color from highlight class (e.g., "highlight-#fff0b3")
+      const highlightClassMatch = newAttrs.match(/class="[^"]*highlight-([#\w]+)[^"]*"/);
+      if (highlightClassMatch && highlightClassMatch[1]) {
+        backgroundColor = highlightClassMatch[1];
+        if (backgroundColor && !backgroundColor.startsWith('#')) {
+          backgroundColor = '#' + backgroundColor;
+        }
+      }
+      
+      // Extract color from data attribute (e.g., data-highlight-colour="#fff0b3")
+      const dataHighlightMatch = newAttrs.match(/data-highlight-colour="([^"]*)"/);
+      if (dataHighlightMatch && dataHighlightMatch[1]) {
+        backgroundColor = dataHighlightMatch[1];
+      }
+      
+      // If we found a background color, add or update the style attribute
+      if (backgroundColor) {
+        const styleMatch = newAttrs.match(/style="([^"]*)"/);
+        if (styleMatch) {
+          // Update existing style attribute
+          const existingStyle = styleMatch[1];
+          // Only add background-color if it's not already present
+          if (!existingStyle.includes('background-color')) {
+            const newStyle = existingStyle.endsWith(';') ? existingStyle : existingStyle + ';';
+            newAttrs = newAttrs.replace(/style="[^"]*"/, `style="${newStyle} background-color: ${backgroundColor};"`);
+          }
+        } else {
+          // Add new style attribute
+          newAttrs = newAttrs + ` style="background-color: ${backgroundColor};"`;
+        }
+        
+        // Remove the highlight data attribute as it's now converted to inline style
+        newAttrs = newAttrs.replace(/\s*data-highlight-colour="[^"]*"/gi, '');
+      }
+      
+      return `<${tag}${newAttrs}>`;
+    });
+    
+    return result;
   }
 }
