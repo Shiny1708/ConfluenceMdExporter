@@ -40,6 +40,9 @@ export class MarkdownConverter {
     
     console.log('Debug: Starting HTML preprocessing...');
     
+    // Handle Confluence table macros first
+    processedHtml = this.preprocessConfluenceTables(processedHtml);
+    
     // Handle Confluence code macros
     processedHtml = processedHtml.replace(
       /<ac:structured-macro\s+ac:name="(code|noformat)"[^>]*>([\s\S]*?)<\/ac:structured-macro>/gi,
@@ -338,11 +341,64 @@ export class MarkdownConverter {
       },
     });
 
-    // Handle Confluence tables better
+    // Handle Confluence tables better with proper markdown table format
     service.addRule('confluenceTable', {
       filter: ['table'],
       replacement: (content: any, node: any) => {
         return '\n\n' + content + '\n\n';
+      },
+    });
+
+    // Handle table headers
+    service.addRule('tableHeader', {
+      filter: ['th'],
+      replacement: (content: any, node: any) => {
+        return content.trim() + ' |';
+      },
+    });
+
+    // Handle table cells
+    service.addRule('tableCell', {
+      filter: ['td'],
+      replacement: (content: any, node: any) => {
+        return content.trim() + ' |';
+      },
+    });
+
+    // Handle table rows
+    service.addRule('tableRow', {
+      filter: ['tr'],
+      replacement: (content: any, node: any) => {
+        // Build proper row with spaces around pipes
+        const cells = Array.from(node.children || []).map((child: any) => {
+          const cellContent = child.textContent || child.innerText || '';
+          const trimmed = cellContent.trim();
+          // Use a single space for empty cells to ensure proper table formatting
+          return trimmed || ' ';
+        });
+        
+        const row = '| ' + cells.join(' | ') + ' |';
+        
+        // Check if this is a header row (contains th elements)
+        const isHeaderRow = Array.from(node.children || []).some((child: any) => 
+          child.nodeName?.toLowerCase() === 'th'
+        );
+        
+        if (isHeaderRow) {
+          // Create separator with proper spacing
+          const separator = '\n| ' + Array(cells.length).fill('---').join(' | ') + ' |';
+          return row + separator + '\n';
+        }
+        
+        return row + '\n';
+      },
+    });
+
+    // Handle table body and table head (remove extra spacing)
+    service.addRule('tableSection', {
+      filter: ['tbody', 'thead', 'tfoot'],
+      replacement: (content: any) => {
+        return content;
       },
     });
 
@@ -688,5 +744,92 @@ export class MarkdownConverter {
     const result = await this.convertPageToFile(page, outputDir, confluenceBaseUrl);
     
     return result;
+  }
+
+  /**
+   * Preprocess Confluence table structures
+   */
+  private preprocessConfluenceTables(html: string): string {
+    let processedHtml = html;
+    
+    // Handle Confluence table macros
+    processedHtml = processedHtml.replace(
+      /<ac:structured-macro\s+ac:name="table"[^>]*>([\s\S]*?)<\/ac:structured-macro>/gi,
+      (match, content) => {
+        console.log('Debug: Found table macro:', match.substring(0, 200) + '...');
+        
+        // Extract the rich text body content
+        const richTextMatch = content.match(/<ac:rich-text-body>([\s\S]*?)<\/ac:rich-text-body>/i);
+        if (richTextMatch) {
+          const tableContent = richTextMatch[1];
+          return tableContent; // Return the table HTML directly
+        }
+        
+        return match; // Return original if we can't parse it
+      }
+    );
+    
+    // Handle Confluence table cell classes and styling
+    processedHtml = processedHtml.replace(
+      /<(th|td)([^>]*?)class="[^"]*confluenceT[hd][^"]*"([^>]*?)>/gi,
+      '<$1$2$3>'
+    );
+    
+    // Clean up empty table cells that might cause issues - ensure they have at least a space
+    processedHtml = processedHtml.replace(
+      /<(th|td)([^>]*?)>\s*<\/\1>/gi,
+      '<$1$2> </$1>'
+    );
+    
+    // Ensure table structure is clean - remove empty tables
+    processedHtml = processedHtml.replace(
+      /<table([^>]*?)>\s*<tbody>\s*<\/tbody>\s*<\/table>/gi,
+      ''
+    );
+    
+    // Clean up extra whitespace in table cells
+    processedHtml = processedHtml.replace(
+      /<(th|td)([^>]*?)>\s*([^<]*?)\s*<\/\1>/gi,
+      '<$1$2>$3</$1>'
+    );
+    
+    return processedHtml;
+  }
+
+  /**
+   * Test table conversion with sample HTML
+   */
+  testTableConversion(): string {
+    const sampleTableHtml = `
+      <table>
+        <thead>
+          <tr>
+            <th>Header 1</th>
+            <th>Header 2</th>
+            <th>Header 3</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Cell 1</td>
+            <td>Cell 2</td>
+            <td>Cell 3</td>
+          </tr>
+          <tr>
+            <td>Cell 4</td>
+            <td>Cell 5</td>
+            <td>Cell 6</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+    
+    console.log('Testing table conversion...');
+    console.log('Input HTML:', sampleTableHtml);
+    
+    const markdown = this.convertToMarkdown(sampleTableHtml);
+    console.log('Output Markdown:', markdown);
+    
+    return markdown;
   }
 }
