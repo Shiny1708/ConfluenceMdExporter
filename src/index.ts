@@ -86,7 +86,8 @@ program
               markdownContent,
               imagesDir,
               config.baseUrl,
-              authHeader
+              authHeader,
+              config // Pass config for SSL ignore setting
             );
             await fs.writeFile(filePath, updatedMarkdown, 'utf-8');
           }
@@ -163,7 +164,8 @@ program
           markdownContent,
           imagesDir,
           config.baseUrl,
-          authHeader
+          authHeader,
+          config // Pass config for SSL ignore setting
         );
         await fs.writeFile(filePath, updatedMarkdown, 'utf-8');
       }
@@ -445,7 +447,8 @@ program
         markdownContent,
         imagesDir,
         config.baseUrl,
-        authHeader
+        authHeader,
+        config // Pass config for SSL ignore setting
       );
 
       if (options.update) {
@@ -554,7 +557,8 @@ program
                 config.baseUrl,
                 authHeader,
                 wikiJsClient,
-                options.uploadPath
+                options.uploadPath,
+                config // Pass config for SSL ignore setting
               );
               updatedMarkdown = result.markdown;
               uploadedAssets = result.uploadedAssets;

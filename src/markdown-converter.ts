@@ -570,7 +570,8 @@ export class MarkdownConverter {
     markdown: string, 
     imageDir: string, 
     confluenceBaseUrl: string,
-    authHeader: string
+    authHeader: string,
+    config?: { ignoreSSL?: boolean }
   ): Promise<string> {
     const axios = (await import('axios')).default;
     const https = (await import('https')).default;
@@ -660,16 +661,22 @@ export class MarkdownConverter {
         console.log(`    Relative path: ${relativePath}`);
         
         // Download the image
-        const response = await axios.get(fullUrl, {
+        const axiosConfig: any = {
           responseType: 'arraybuffer',
           headers: {
             'Authorization': authHeader
           },
-          // Add SSL ignore if needed
-          httpsAgent: new https.Agent({ rejectUnauthorized: false }),
           timeout: 30000, // 30 second timeout
           maxRedirects: 5
-        });
+        };
+        
+        // Add SSL ignore if configured
+        if (config?.ignoreSSL) {
+          axiosConfig.httpsAgent = new https.Agent({ rejectUnauthorized: false });
+          console.log(`  🔒 SSL certificate verification disabled for this request`);
+        }
+        
+        const response = await axios.get(fullUrl, axiosConfig);
         
         console.log(`  📊 Response received:`);
         console.log(`    Status: ${response.status}`);
@@ -738,23 +745,79 @@ export class MarkdownConverter {
     confluenceBaseUrl: string,
     authHeader: string,
     wikiJsClient: any, // WikiJsClient
-    uploadPath: string = '/uploads'
+    uploadPath: string = '/uploads',
+    config?: { ignoreSSL?: boolean }
   ): Promise<{ markdown: string; uploadedAssets: any[] }> {
     const axios = (await import('axios')).default;
+    const https = (await import('https')).default;
     
     // Create images directory
     await fs.mkdir(imagesDir, { recursive: true });
+    console.log(`📁 Created/verified images directory for Wiki.js: ${imagesDir}`);
     
-    const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
     let updatedMarkdown = markdown;
-    let match;
     const uploadedAssets: any[] = [];
+    let processedCount = 0;
     
-    while ((match = imageRegex.exec(markdown)) !== null) {
-      const [fullMatch, alt, url] = match;
+    console.log(`🔍 Searching for images in markdown for Wiki.js upload...`);
+    console.log(`📝 Markdown length: ${markdown.length} characters`);
+    
+    // Find both markdown images and HTML img tags (same as downloadAndUpdateImages)
+    const markdownImageRegex = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+    const htmlImageRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/g;
+    
+    const allImages = [];
+    let match;
+    
+    // Find markdown images
+    while ((match = markdownImageRegex.exec(markdown)) !== null) {
+      allImages.push({
+        type: 'markdown',
+        fullMatch: match[0],
+        alt: match[1],
+        url: match[2],
+        originalMatch: match
+      });
+    }
+    
+    // Find HTML img tags
+    markdownImageRegex.lastIndex = 0; // Reset regex
+    while ((match = htmlImageRegex.exec(markdown)) !== null) {
+      // Extract alt text from HTML img tag
+      const altMatch = match[0].match(/alt=["']([^"']*)["']/);
+      allImages.push({
+        type: 'html',
+        fullMatch: match[0],
+        alt: altMatch ? altMatch[1] : '',
+        url: match[1],
+        originalMatch: match
+      });
+    }
+    
+    console.log(`🖼️  Found ${allImages.length} image references total (markdown + HTML) for Wiki.js upload`);
+    
+    // Process each image
+    for (const image of allImages) {
+      const { type, fullMatch, alt, url } = image;
+      
+      console.log(`\n  📷 Processing ${type} image for Wiki.js:`);
+      console.log(`    Alt text: "${alt}"`);
+      console.log(`    URL: "${url}"`);
       
       // Skip if it's already a local file or external URL (non-Confluence)
-      if (!url.includes('/download/') || (url.startsWith('http') && !url.includes(confluenceBaseUrl))) {
+      if (url.startsWith('./') || url.startsWith('../')) {
+        console.log(`  ⏭️  Skipping local relative image: ${url}`);
+        continue;
+      }
+      
+      if (url.startsWith('http') && !url.includes(confluenceBaseUrl)) {
+        console.log(`  ⏭️  Skipping external image (not from Confluence): ${url}`);
+        continue;
+      }
+      
+      // Check if it's a Confluence attachment/download URL
+      if (!url.includes('/download/')) {
+        console.log(`  ⏭️  Skipping non-attachment image: ${url}`);
         continue;
       }
       
@@ -765,33 +828,84 @@ export class MarkdownConverter {
         const localPath = path.join(imagesDir, sanitizedFilename);
         
         console.log(`  📥 Downloading for Wiki.js: ${originalFilename} -> ${sanitizedFilename}`);
+        console.log(`    Full URL: ${fullUrl}`);
+        console.log(`    Local path: ${localPath}`);
         
-        // Download the image
-        const response = await axios.get(fullUrl, {
+        // Download the image with SSL ignore and proper error handling
+        const axiosConfig: any = {
           responseType: 'arraybuffer',
           headers: {
             'Authorization': authHeader
-          }
-        });
+          },
+          timeout: 30000, // 30 second timeout
+          maxRedirects: 5
+        };
+        
+        // Add SSL ignore if configured
+        if (config?.ignoreSSL) {
+          axiosConfig.httpsAgent = new https.Agent({ rejectUnauthorized: false });
+          console.log(`  🔒 SSL certificate verification disabled for this request`);
+        }
+        
+        const response = await axios.get(fullUrl, axiosConfig);
+        
+        console.log(`  📊 Response received:`);
+        console.log(`    Status: ${response.status}`);
+        console.log(`    Content-Type: ${response.headers['content-type']}`);
+        console.log(`    Content-Length: ${response.headers['content-length']}`);
+        console.log(`    Data size: ${response.data.byteLength} bytes`);
         
         await fs.writeFile(localPath, Buffer.from(response.data));
+        console.log(`  ✅ Downloaded and saved: ${sanitizedFilename}`);
+        
+        // Verify file was written
+        const stats = await fs.stat(localPath);
+        console.log(`  📁 File verification: ${stats.size} bytes on disk`);
         
         // Upload to Wiki.js
         console.log(`  ⬆️  Uploading to Wiki.js: ${sanitizedFilename}`);
         const asset = await wikiJsClient.uploadAsset(localPath, uploadPath);
         uploadedAssets.push(asset);
+        console.log(`  ✅ Uploaded to Wiki.js successfully`);
         
-        // Update markdown to use Wiki.js asset path
+        // Update markdown/HTML to use Wiki.js asset path
         const wikiJsImagePath = `${uploadPath}/${asset.filename || sanitizedFilename}`;
-        updatedMarkdown = updatedMarkdown.replace(fullMatch, `![${alt}](${wikiJsImagePath})`);
+        
+        if (type === 'markdown') {
+          // Replace markdown image
+          updatedMarkdown = updatedMarkdown.replace(fullMatch, `![${alt}](${wikiJsImagePath})`);
+          console.log(`  🔄 Updated markdown link to: ![${alt}](${wikiJsImagePath})`);
+        } else {
+          // Replace HTML img tag - update src attribute
+          const updatedImgTag = fullMatch.replace(/src=["'][^"']+["']/, `src="${wikiJsImagePath}"`);
+          updatedMarkdown = updatedMarkdown.replace(fullMatch, updatedImgTag);
+          console.log(`  🔄 Updated HTML img src to: ${wikiJsImagePath}`);
+        }
         
         // Clean up local file
         await fs.unlink(localPath);
+        console.log(`  🗑️  Cleaned up local file: ${localPath}`);
         
-      } catch (error) {
-        console.warn(`  ⚠️  Failed to process image ${url}: ${error}`);
+        processedCount++;
+        
+      } catch (error: any) {
+        console.error(`  ❌ Failed to process image ${url} for Wiki.js:`);
+        console.error(`    Error: ${error.message}`);
+        if (error.response) {
+          console.error(`    HTTP Status: ${error.response.status}`);
+          console.error(`    Status Text: ${error.response.statusText}`);
+          console.error(`    Response Headers:`, error.response.headers);
+        }
+        if (error.code) {
+          console.error(`    Error Code: ${error.code}`);
+        }
       }
     }
+    
+    console.log(`\n📊 Wiki.js image processing summary:`);
+    console.log(`  Total images found: ${allImages.length}`);
+    console.log(`  Images processed: ${processedCount}`);
+    console.log(`  Assets uploaded: ${uploadedAssets.length}`);
     
     return { markdown: updatedMarkdown, uploadedAssets };
   }
