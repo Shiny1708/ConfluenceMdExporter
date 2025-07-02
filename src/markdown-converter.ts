@@ -1096,25 +1096,25 @@ export class MarkdownConverter {
   private processConfluenceLinks(html: string): string {
     let processedHtml = html;
     
-    // Handle ac:link macros with ri:space (space links)
+    // Handle ac:link macros with ri:space (self-closing space links with CDATA)
     processedHtml = processedHtml.replace(
-      /<ac:link>\s*<ri:space\s+ri:space-key="([^"]+)"\s*(?:ri:content-title="([^"]*)")?\s*>\s*<ac:plain-text-link-body>\s*(.*?)\s*<\/ac:plain-text-link-body>\s*<\/ri:space>\s*<\/ac:link>/gi,
-      (match, spaceKey, contentTitle, linkText) => {
-        console.log(`Debug: Found space link: spaceKey="${spaceKey}", contentTitle="${contentTitle || ''}", linkText="${linkText}"`);
+      /<ac:link>\s*<ri:space\s+ri:space-key="([^"]+)"\s*\/>\s*<ac:plain-text-link-body>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/ac:plain-text-link-body>\s*<\/ac:link>/gi,
+      (match, spaceKey, linkText) => {
+        console.log(`Debug: Found space link with CDATA: spaceKey="${spaceKey}", linkText="${linkText}"`);
         
-        // Use linkText if provided, otherwise use space key or content title
-        const displayText = linkText.trim() || contentTitle || spaceKey;
+        // Use linkText if provided, otherwise use space key
+        const displayText = linkText.trim() || spaceKey;
         const href = `/spaces/${spaceKey}`;
         
         return `<a href="${href}">${displayText}</a>`;
       }
     );
     
-    // Handle ac:link macros with ri:page (page links)
+    // Handle ac:link macros with ri:page (self-closing page links with CDATA)
     processedHtml = processedHtml.replace(
-      /<ac:link>\s*<ri:page\s+(?:ri:space-key="([^"]+)"\s+)?ri:content-title="([^"]+)"\s*>\s*<ac:plain-text-link-body>\s*(.*?)\s*<\/ac:plain-text-link-body>\s*<\/ri:page>\s*<\/ac:link>/gi,
+      /<ac:link>\s*<ri:page\s+(?:ri:space-key="([^"]+)"\s+)?ri:content-title="([^"]+)"\s*\/>\s*<ac:plain-text-link-body>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/ac:plain-text-link-body>\s*<\/ac:link>/gi,
       (match, spaceKey, contentTitle, linkText) => {
-        console.log(`Debug: Found page link: spaceKey="${spaceKey || 'current'}", contentTitle="${contentTitle}", linkText="${linkText}"`);
+        console.log(`Debug: Found page link with CDATA: spaceKey="${spaceKey || 'current'}", contentTitle="${contentTitle}", linkText="${linkText}"`);
         
         // Use linkText if provided, otherwise use content title
         const displayText = linkText.trim() || contentTitle;
@@ -1131,9 +1131,9 @@ export class MarkdownConverter {
       }
     );
     
-    // Handle simple ac:link with ri:space (no link body text)
+    // Handle ac:link macros with ri:space (self-closing, no CDATA - empty link body)
     processedHtml = processedHtml.replace(
-      /<ac:link>\s*<ri:space\s+ri:space-key="([^"]+)"\s*>\s*<ac:plain-text-link-body>\s*<\/ac:plain-text-link-body>\s*<\/ri:space>\s*<\/ac:link>/gi,
+      /<ac:link>\s*<ri:space\s+ri:space-key="([^"]+)"\s*\/>\s*<ac:plain-text-link-body>\s*<\/ac:plain-text-link-body>\s*<\/ac:link>/gi,
       (match, spaceKey) => {
         console.log(`Debug: Found empty space link: spaceKey="${spaceKey}"`);
         
@@ -1144,9 +1144,9 @@ export class MarkdownConverter {
       }
     );
     
-    // Handle simple ac:link with ri:page (no link body text)
+    // Handle ac:link macros with ri:page (self-closing, no CDATA - empty link body)
     processedHtml = processedHtml.replace(
-      /<ac:link>\s*<ri:page\s+(?:ri:space-key="([^"]+)"\s+)?ri:content-title="([^"]+)"\s*>\s*<ac:plain-text-link-body>\s*<\/ac:plain-text-link-body>\s*<\/ri:page>\s*<\/ac:link>/gi,
+      /<ac:link>\s*<ri:page\s+(?:ri:space-key="([^"]+)"\s+)?ri:content-title="([^"]+)"\s*\/>\s*<ac:plain-text-link-body>\s*<\/ac:plain-text-link-body>\s*<\/ac:link>/gi,
       (match, spaceKey, contentTitle) => {
         console.log(`Debug: Found empty page link: spaceKey="${spaceKey || 'current'}", contentTitle="${contentTitle}"`);
         
@@ -1164,17 +1164,102 @@ export class MarkdownConverter {
       }
     );
     
+    // Handle legacy format: ac:link macros with ri:space (non-self-closing with CDATA)
+    processedHtml = processedHtml.replace(
+      /<ac:link>\s*<ri:space\s+ri:space-key="([^"]+)"\s*(?:ri:content-title="([^"]*)")?\s*>\s*<ac:plain-text-link-body>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/ac:plain-text-link-body>\s*<\/ri:space>\s*<\/ac:link>/gi,
+      (match, spaceKey, contentTitle, linkText) => {
+        console.log(`Debug: Found legacy space link: spaceKey="${spaceKey}", contentTitle="${contentTitle || ''}", linkText="${linkText}"`);
+        
+        // Use linkText if provided, otherwise use space key or content title
+        const displayText = linkText.trim() || contentTitle || spaceKey;
+        const href = `/spaces/${spaceKey}`;
+        
+        return `<a href="${href}">${displayText}</a>`;
+      }
+    );
+    
+    // Handle legacy format: ac:link macros with ri:page (non-self-closing with CDATA)
+    processedHtml = processedHtml.replace(
+      /<ac:link>\s*<ri:page\s+(?:ri:space-key="([^"]+)"\s+)?ri:content-title="([^"]+)"\s*>\s*<ac:plain-text-link-body>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/ac:plain-text-link-body>\s*<\/ri:page>\s*<\/ac:link>/gi,
+      (match, spaceKey, contentTitle, linkText) => {
+        console.log(`Debug: Found legacy page link: spaceKey="${spaceKey || 'current'}", contentTitle="${contentTitle}", linkText="${linkText}"`);
+        
+        // Use linkText if provided, otherwise use content title
+        const displayText = linkText.trim() || contentTitle;
+        
+        // Build the link URL
+        let href;
+        if (spaceKey) {
+          href = `/spaces/${spaceKey}/pages/${encodeURIComponent(contentTitle)}`;
+        } else {
+          href = `/pages/${encodeURIComponent(contentTitle)}`;
+        }
+        
+        return `<a href="${href}">${displayText}</a>`;
+      }
+    );
+    
+    // Handle ac:link macros with ri:page (self-closing, no link body at all)
+    processedHtml = processedHtml.replace(
+      /<ac:link>\s*<ri:page\s+(?:ri:space-key="([^"]+)"\s+)?ri:content-title="([^"]+)"\s*\/>\s*<\/ac:link>/gi,
+      (match, spaceKey, contentTitle) => {
+        console.log(`Debug: Found minimal page link: spaceKey="${spaceKey || 'current'}", contentTitle="${contentTitle}"`);
+        
+        // Build the link URL
+        let href;
+        if (spaceKey) {
+          href = `/spaces/${spaceKey}/pages/${encodeURIComponent(contentTitle)}`;
+        } else {
+          href = `/pages/${encodeURIComponent(contentTitle)}`;
+        }
+        
+        const displayText = contentTitle; // Use content title as display text
+        
+        return `<a href="${href}">${displayText}</a>`;
+      }
+    );
+    
+    // Handle ac:link macros with ri:space (self-closing, no link body at all)
+    processedHtml = processedHtml.replace(
+      /<ac:link>\s*<ri:space\s+ri:space-key="([^"]+)"\s*\/>\s*<\/ac:link>/gi,
+      (match, spaceKey) => {
+        console.log(`Debug: Found minimal space link: spaceKey="${spaceKey}"`);
+        
+        const href = `/spaces/${spaceKey}`;
+        const displayText = spaceKey; // Use space key as display text
+        
+        return `<a href="${href}">${displayText}</a>`;
+      }
+    );
+    
     // Handle any remaining ac:link tags that might not match the patterns above
     processedHtml = processedHtml.replace(
       /<ac:link[^>]*>([\s\S]*?)<\/ac:link>/gi,
       (match, content) => {
         console.log(`Debug: Found unhandled ac:link:`, match.substring(0, 200));
         
-        // Try to extract any meaningful text from the content
-        const textMatch = content.match(/<ac:plain-text-link-body[^>]*>(.*?)<\/ac:plain-text-link-body>/i);
-        const linkText = textMatch ? textMatch[1].trim() : 'Link';
+        // Try to extract any meaningful text from the content (including CDATA)
+        let linkText = '';
         
-        // Return a simple span or just the text if we can't process it properly
+        // Try CDATA first
+        const cdataMatch = content.match(/<ac:plain-text-link-body[^>]*>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/ac:plain-text-link-body>/i);
+        if (cdataMatch) {
+          linkText = cdataMatch[1].trim();
+        } else {
+          // Try regular text content
+          const textMatch = content.match(/<ac:plain-text-link-body[^>]*>(.*?)<\/ac:plain-text-link-body>/i);
+          if (textMatch) {
+            linkText = textMatch[1].trim();
+          }
+        }
+        
+        // If still no link text, try to extract from ri:page or ri:space attributes
+        if (!linkText) {
+          const pageMatch = content.match(/ri:content-title="([^"]+)"/);
+          const spaceMatch = content.match(/ri:space-key="([^"]+)"/);
+          linkText = pageMatch ? pageMatch[1] : (spaceMatch ? spaceMatch[1] : 'Link');
+        }
+        
         return linkText || '<!-- Unprocessed Confluence Link -->';
       }
     );
