@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { WikiJsConfig, WikiJsAsset, WikiJsPage } from './types';
+import { WikiJsConfig, WikiJsAsset, WikiJsPage, ConfluencePage, NavigationItem, ConfluencePageAncestor } from './types';
 
 export class WikiJsClient {
   private client: AxiosInstance;
@@ -469,6 +469,121 @@ export class WikiJsClient {
         // Root folder - no folder path needed
         return `/${asset.filename}`;
       }
+    }
+  }
+
+  /**
+   * Create hierarchical page path from Confluence page ancestors
+   */
+  static createHierarchicalPath(page: ConfluencePage, spaceKey?: string): string {
+    const pathParts: string[] = [];
+    
+    // Add space key as root if provided
+    if (spaceKey) {
+      pathParts.push(spaceKey.toLowerCase());
+    }
+    
+    // Add ancestor paths (parent to child order)
+    if (page.ancestors && page.ancestors.length > 0) {
+      const ancestorPaths = page.ancestors.map((ancestor: ConfluencePageAncestor) => 
+        ancestor.title
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+      );
+      pathParts.push(...ancestorPaths);
+    }
+    
+    // Add the page itself
+    const pagePath = page.title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    
+    pathParts.push(pagePath);
+    
+    return pathParts.join('/');
+  }
+
+  /**
+   * Build navigation tree structure from pages
+   */
+  static buildNavigationTree(pages: ConfluencePage[], spaceKey?: string): NavigationItem[] {
+    const tree: NavigationItem[] = [];
+    const pageMap = new Map<string, ConfluencePage>();
+    
+    // Create a map of pages by ID for easy lookup
+    pages.forEach(page => pageMap.set(page.id, page));
+    
+    // Find root pages (pages with no ancestors or ancestors not in this space)
+    const rootPages = pages.filter(page => 
+      !page.ancestors || 
+      page.ancestors.length === 0 ||
+      !page.ancestors.some((ancestor: ConfluencePageAncestor) => pageMap.has(ancestor.id))
+    );
+    
+    // Build tree recursively
+    function buildSubTree(parentId: string | null): NavigationItem[] {
+      const children = pages.filter(page => {
+        if (!page.ancestors || page.ancestors.length === 0) {
+          return parentId === null;
+        }
+        const directParent = page.ancestors[page.ancestors.length - 1];
+        return directParent && directParent.id === parentId;
+      });
+      
+      return children.map(child => ({
+        label: child.title,
+        path: `/${WikiJsClient.createHierarchicalPath(child, spaceKey)}`,
+        children: buildSubTree(child.id)
+      }));
+    }
+    
+    // Start with root pages
+    return buildSubTree(null);
+  }
+
+  /**
+   * Create or update Wiki.js navigation
+   */
+  async createNavigation(navigationTree: NavigationItem[], spaceKey: string): Promise<any> {
+    const mutation = `
+      mutation($key: String!, $config: [NavigationConfigInput]!) {
+        navigation {
+          updateTree(key: $key, config: $config) {
+            responseResult {
+              succeeded
+              errorCode
+              slug
+              message
+            }
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      key: 'main', // or use space-specific navigation key
+      config: [{
+        label: spaceKey.toUpperCase(),
+        icon: 'mdi-book-open-variant',
+        children: navigationTree
+      }]
+    };
+
+    try {
+      const response = await this.client.post('/graphql', {
+        query: mutation,
+        variables: variables
+      });
+      return response.data.data.navigation.updateTree;
+    } catch (error) {
+      console.error('Failed to create navigation:', error);
+      throw error;
     }
   }
 

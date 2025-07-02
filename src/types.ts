@@ -18,6 +18,12 @@ export interface ConfluencePage {
   _links: {
     webui: string;
   };
+  ancestors?: ConfluencePageAncestor[];
+}
+
+export interface ConfluencePageAncestor {
+  id: string;
+  title: string;
 }
 
 export interface ConfluenceSpace {
@@ -72,4 +78,11 @@ export interface WikiJsPage {
   locale: string;
   authorId?: number;
   creatorId?: number;
+}
+
+export interface NavigationItem {
+  label: string;
+  path: string;
+  children?: NavigationItem[];
+  icon?: string;
 }

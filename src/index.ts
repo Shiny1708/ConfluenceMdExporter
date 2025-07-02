@@ -33,6 +33,7 @@ program
   .option('-o, --output <directory>', 'Output directory')
   .option('--download-images', 'Download and save images locally')
   .option('--html-tables', 'Preserve tables as HTML instead of converting to markdown')
+  .option('--preserve-hierarchy', 'Preserve Confluence page hierarchy in output directory structure')
   .action(async (options) => {
     try {
       const config = loadConfigWithOptions(program.opts());
@@ -470,6 +471,8 @@ program
   .option('--upload-path <path>', 'Wiki.js upload path for images', '/uploads')
   .option('--page-prefix <prefix>', 'Prefix for Wiki.js page paths')
   .option('--html-tables', 'Preserve tables as HTML instead of converting to markdown')
+  .option('--preserve-hierarchy', 'Preserve Confluence page hierarchy in Wiki.js paths')
+  .option('--create-navigation', 'Create Wiki.js navigation from page hierarchy')
   .option('--dry-run', 'Preview what would be uploaded without actually doing it')
   .action(async (options) => {
     try {
@@ -534,11 +537,13 @@ program
             // Convert to Wiki.js compatible markdown
             const wikiJsMarkdown = converter.convertToWikiJsMarkdown(updatedMarkdown);
             
-            // Generate Wiki.js page path
-            const pagePath = (await import('./wikijs-client')).WikiJsClient.sanitizePagePath(
-              page.title, 
-              options.pagePrefix || spaceKey
-            );
+            // Generate Wiki.js page path (preserve hierarchy if requested)
+            const pagePath = options.preserveHierarchy 
+              ? (await import('./wikijs-client')).WikiJsClient.createHierarchicalPath(page, options.pagePrefix || spaceKey)
+              : (await import('./wikijs-client')).WikiJsClient.sanitizePagePath(
+                  page.title, 
+                  options.pagePrefix || spaceKey
+                );
             
             // Check if page already exists
             const existingPage = await wikiJsClient.getPageByPath(pagePath);
@@ -576,10 +581,12 @@ program
           } else {
             // Dry run - just show what would happen
             const wikiJsMarkdown = converter.convertToWikiJsMarkdown(markdown);
-            const pagePath = (await import('./wikijs-client')).WikiJsClient.sanitizePagePath(
-              page.title, 
-              options.pagePrefix || spaceKey
-            );
+            const pagePath = options.preserveHierarchy 
+              ? (await import('./wikijs-client')).WikiJsClient.createHierarchicalPath(page, options.pagePrefix || spaceKey)
+              : (await import('./wikijs-client')).WikiJsClient.sanitizePagePath(
+                  page.title, 
+                  options.pagePrefix || spaceKey
+                );
             
             console.log(`  📋 Would create/update: /${pagePath}`);
             console.log(`  📊 Content length: ${wikiJsMarkdown.length} characters`);
@@ -604,6 +611,32 @@ program
         await fs.rm(tempImagesDir, { recursive: true });
       } catch (error) {
         // Ignore cleanup errors
+      }
+
+      // Create navigation structure if requested
+      if (options.createNavigation && !options.dryRun && results.some(r => r.status === 'success')) {
+        try {
+          console.log(`\n🧭 Creating Wiki.js navigation structure...`);
+          const { WikiJsClient } = await import('./wikijs-client');
+          const successfulPages = results
+            .filter(r => r.status === 'success')
+            .map(r => r.confluencePage);
+          
+          const navigationTree = WikiJsClient.buildNavigationTree(successfulPages, spaceKey);
+          
+          if (navigationTree.length > 0) {
+            const navResult = await wikiJsClient.createNavigation(navigationTree, spaceKey);
+            if (navResult.responseResult.succeeded) {
+              console.log(`  ✅ Navigation structure created successfully`);
+            } else {
+              console.log(`  ⚠️  Navigation creation completed with warnings: ${navResult.responseResult.message}`);
+            }
+          } else {
+            console.log(`  ℹ️  No navigation structure to create (no hierarchical pages found)`);
+          }
+        } catch (error) {
+          console.error(`  ❌ Failed to create navigation: ${error}`);
+        }
       }
 
       // Summary
