@@ -941,30 +941,57 @@ export class MarkdownConverter {
   private cleanTableHtml(tableHtml: string): string {
     let cleanHtml = tableHtml;
     
-    // Remove Confluence-specific classes but keep styling
-    cleanHtml = cleanHtml.replace(/class="[^"]*confluenceT[hd][^"]*"/gi, '');
-    cleanHtml = cleanHtml.replace(/class="[^"]*confluenceTable[^"]*"/gi, '');
+    // Remove only Confluence-specific classes but preserve all other attributes including style
+    cleanHtml = cleanHtml.replace(/\s*class="[^"]*confluenceT[hd][^"]*"/gi, '');
+    cleanHtml = cleanHtml.replace(/\s*class="[^"]*confluenceTable[^"]*"/gi, '');
     
-    // Format the HTML nicely with proper indentation
-    cleanHtml = cleanHtml.replace(/></g, '>\n<');
-    cleanHtml = cleanHtml.replace(/<table[^>]*>/gi, match => `${match}\n`);
+    // Be more careful with class removal - only remove confluence classes, keep others
+    cleanHtml = cleanHtml.replace(/class="([^"]*)"/gi, (match, classes) => {
+      const filteredClasses = classes
+        .split(/\s+/)
+        .filter((cls: string) => !cls.toLowerCase().includes('confluence'))
+        .join(' ');
+      return filteredClasses ? `class="${filteredClasses}"` : '';
+    });
+    
+    // Format the HTML nicely with proper indentation while preserving content
+    cleanHtml = cleanHtml.replace(/>\s*</g, '>\n<');
+    cleanHtml = cleanHtml.replace(/<table([^>]*)>/gi, match => `${match}\n`);
     cleanHtml = cleanHtml.replace(/<\/table>/gi, '\n</table>');
-    cleanHtml = cleanHtml.replace(/<tr[^>]*>/gi, match => `  ${match}\n`);
+    cleanHtml = cleanHtml.replace(/<(tbody|thead|tfoot)([^>]*)>/gi, match => `${match}\n`);
+    cleanHtml = cleanHtml.replace(/<\/(tbody|thead|tfoot)>/gi, match => `\n${match}`);
+    cleanHtml = cleanHtml.replace(/<tr([^>]*)>/gi, match => `  ${match}\n`);
     cleanHtml = cleanHtml.replace(/<\/tr>/gi, '\n  </tr>');
-    cleanHtml = cleanHtml.replace(/<(th|td)[^>]*>/gi, match => `    ${match}`);
+    cleanHtml = cleanHtml.replace(/<(th|td)([^>]*)>/gi, match => `    ${match}`);
     cleanHtml = cleanHtml.replace(/<\/(th|td)>/gi, match => `${match}\n`);
     
-    // Clean up extra whitespace
+    // Clean up excessive whitespace but preserve structure
     cleanHtml = cleanHtml.replace(/\n\s*\n/g, '\n');
     cleanHtml = cleanHtml.trim();
     
-    // Add some basic styling if none exists
-    if (!cleanHtml.includes('style=') && !cleanHtml.includes('<style>')) {
-      cleanHtml = cleanHtml.replace('<table', '<table style="border-collapse: collapse; width: 100%;"');
+    // Only add basic styling if NO styles exist at all (neither inline nor in style attribute)
+    const hasInlineStyles = cleanHtml.includes('style=');
+    const hasStyleTags = cleanHtml.includes('<style>');
+    
+    if (!hasInlineStyles && !hasStyleTags) {
+      // Add basic table styling
+      cleanHtml = cleanHtml.replace(/<table([^>]*)>/i, (match, attrs) => {
+        if (!attrs.includes('style=')) {
+          return `<table${attrs} style="border-collapse: collapse; width: 100%;">`;
+        }
+        return match;
+      });
       
-      // Add basic cell styling
-      cleanHtml = cleanHtml.replace(/<(th|td)(?![^>]*style=)/g, '<$1 style="border: 1px solid #ddd; padding: 8px;"');
-      cleanHtml = cleanHtml.replace(/<th(?![^>]*style=)/g, '<th style="border: 1px solid #ddd; padding: 8px; background-color: #f5f5f5; font-weight: bold;"');
+      // Add basic cell styling only to cells without existing styles
+      cleanHtml = cleanHtml.replace(/<(th|td)([^>]*?)>/gi, (match, tag, attrs) => {
+        if (!attrs.includes('style=')) {
+          const defaultStyle = tag === 'th' 
+            ? 'border: 1px solid #ddd; padding: 8px; background-color: #f5f5f5; font-weight: bold;'
+            : 'border: 1px solid #ddd; padding: 8px;';
+          return `<${tag}${attrs} style="${defaultStyle}">`;
+        }
+        return match;
+      });
     }
     
     return cleanHtml;
