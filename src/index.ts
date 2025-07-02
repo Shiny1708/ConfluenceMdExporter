@@ -476,6 +476,7 @@ program
   .option('--create-navigation', 'Create Wiki.js navigation from page hierarchy')
   .option('--upload-images', 'Download images from Confluence and upload to Wiki.js')
   .option('--skip-images', 'Skip image processing entirely (faster but no images)')
+  .option('--update', 'Update existing pages (default: true). Use --no-update to skip existing pages')
   .option('--dry-run', 'Preview what would be uploaded without actually doing it')
   .action(async (options) => {
     try {
@@ -496,6 +497,7 @@ program
       console.log(`📚 Wiki.js: ${wikiJsConfig.baseUrl}`);
       console.log(`📁 Upload path: ${options.uploadPath}`);
       console.log(`🌐 Namespace: ${namespace}`);
+      console.log(`🔄 Update mode: ${options.update !== false ? 'Update existing pages' : 'Skip existing pages'}`);
       
       // Show image processing mode
       if (options.uploadImages) {
@@ -579,6 +581,18 @@ program
             // Check if page already exists
             const existingPage = await wikiJsClient.getPageByPath(pagePath);
             
+            // Handle existing page based on update flag
+            if (existingPage && options.update === false) {
+              console.log(`  ⏭️  Skipping existing page at /${pagePath} (use --update to overwrite)`);
+              results.push({
+                confluencePage: page,
+                wikiJsPage: existingPage,
+                uploadedAssets: [],
+                status: 'skipped'
+              });
+              continue;
+            }
+            
             const wikiJsPage = {
               path: pagePath,
               title: page.title,
@@ -620,7 +634,17 @@ program
                   namespace
                 );
             
-            console.log(`  📋 Would create/update: /${pagePath}`);
+            // Check if page exists in dry-run mode
+            const existingPage = await wikiJsClient.getPageByPath(pagePath);
+            
+            if (existingPage && options.update === false) {
+              console.log(`  ⏭️  Would skip existing page: /${pagePath} (use --update to overwrite)`);
+            } else if (existingPage) {
+              console.log(`  🔄 Would update existing page: /${pagePath}`);
+            } else {
+              console.log(`  ✨ Would create new page: /${pagePath}`);
+            }
+            
             console.log(`  📊 Content length: ${wikiJsMarkdown.length} characters`);
             
             // Count images that would be processed
@@ -681,9 +705,13 @@ program
       console.log(`\n🎉 Export completed!`);
       const successful = results.filter(r => r.status === 'success').length;
       const failed = results.filter(r => r.status === 'error').length;
+      const skipped = results.filter(r => r.status === 'skipped').length;
       const totalImages = results.reduce((sum, r) => sum + (r.uploadedAssets?.length || 0), 0);
       
       console.log(`✅ Successfully processed: ${successful} pages`);
+      if (skipped > 0) {
+        console.log(`⏭️  Skipped existing: ${skipped} pages (use --update to overwrite)`);
+      }
       if (failed > 0) {
         console.log(`❌ Failed: ${failed} pages`);
       }
@@ -705,6 +733,7 @@ program
   .option('--namespace <namespace>', 'Wiki.js namespace/locale (e.g., "de" for German, "fr" for French)')
   .option('--upload-images', 'Upload images to Wiki.js')
   .option('--upload-path <path>', 'Wiki.js upload path for images', '/uploads')
+  .option('--update', 'Update existing pages (default: true). Use --no-update to skip existing pages')
   .option('--dry-run', 'Preview without uploading')
   .action(async (options) => {
     try {
@@ -722,6 +751,7 @@ program
       console.log(`📚 Converting to Wiki.js format`);
       console.log(`📡 Wiki.js: ${wikiJsConfig.baseUrl}`);
       console.log(`🌐 Namespace: ${namespace}`);
+      console.log(`🔄 Update mode: ${options.update !== false ? 'Update existing pages' : 'Skip existing pages'}`);
 
       const wikiJsClient = new (await import('./wikijs-client')).WikiJsClient(wikiJsConfig);
       const converter = new MarkdownConverter();
@@ -844,6 +874,12 @@ program
             // Check if page exists
             const existingPage = await wikiJsClient.getPageByPath(pagePath);
             
+            // Handle existing page based on update flag
+            if (existingPage && options.update === false) {
+              console.log(`  ⏭️  Skipping existing page at /${pagePath} (use --update to overwrite)`);
+              continue;
+            }
+            
             const wikiJsPage = {
               path: pagePath,
               title: title,
@@ -869,7 +905,17 @@ program
               console.log(`  📊 Uploaded ${uploadedAssets.length} images`);
             }
           } else {
-            console.log(`  📋 Would create/update: /${pagePath}`);
+            // Dry run - check if page exists
+            const existingPage = await wikiJsClient.getPageByPath(pagePath);
+            
+            if (existingPage && options.update === false) {
+              console.log(`  ⏭️  Would skip existing page: /${pagePath} (use --update to overwrite)`);
+            } else if (existingPage) {
+              console.log(`  🔄 Would update existing page: /${pagePath}`);
+            } else {
+              console.log(`  ✨ Would create new page: /${pagePath}`);
+            }
+            
             console.log(`  📊 Content length: ${wikiJsMarkdown.length} characters`);
             
             // Show what images would be uploaded in dry-run mode

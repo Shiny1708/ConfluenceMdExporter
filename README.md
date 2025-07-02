@@ -391,16 +391,28 @@ npm start -- export-to-wikijs --space DEMO
 # Override namespace from command line
 npm start -- export-to-wikijs --space DEMO --namespace de
 
+# Skip existing pages (don't update them)
+npm start -- export-to-wikijs --space DEMO --no-update
+
+# Force update all existing pages (default behavior)
+npm start -- export-to-wikijs --space DEMO --update
+
 # With custom settings
 npm start -- export-to-wikijs --space DEMO \
   --upload-path "/my-images" \
   --page-prefix "confluence" \
   --namespace "fr" \
+  --update \
   --dry-run
 
 # Preview what would be uploaded (no actual changes)
 npm start -- export-to-wikijs --space DEMO --dry-run
 ```
+
+**Update Mode Options:**
+- **Default**: `--update` (updates existing pages)
+- **Skip existing**: `--no-update` (skips pages that already exist)
+- **Preview**: `--dry-run` (shows what would happen without making changes)
 
 **Namespace Examples:**
 - With `WIKIJS_NAMESPACE=en` (default): Pages created at `/DEMO/page-title`
@@ -415,6 +427,9 @@ npm start -- convert-to-wikijs --input my-page.md --page-path "my-custom-path"
 
 # Convert with German namespace
 npm start -- convert-to-wikijs --input my-page.md --page-path "my-custom-path" --namespace de
+
+# Skip existing pages
+npm start -- convert-to-wikijs --input my-page.md --page-path "my-custom-path" --no-update
 
 # Convert entire directory of markdown files
 npm start -- convert-to-wikijs --input ./exports/DEMO/
