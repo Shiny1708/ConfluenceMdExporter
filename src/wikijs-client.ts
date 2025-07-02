@@ -201,22 +201,9 @@ export class WikiJsClient {
    */
   async updatePage(pageId: number, updates: Partial<WikiJsPage>): Promise<WikiJsPage> {
     const mutation = `
-      mutation ($id: Int!, $content: String, $description: String, $editor: String, $isPrivate: Boolean, $isPublished: Boolean, $locale: String, $path: String, $publishEndDate: Date, $publishStartDate: Date, $tags: [String], $title: String) {
+      mutation updatePage($id: Int!, $content: String, $description: String, $editor: String, $isPrivate: Boolean, $isPublished: Boolean, $locale: String, $path: String, $publishEndDate: Date, $publishStartDate: Date, $scriptCss: String, $scriptJs: String, $tags: [String], $title: String) {
         pages {
-          update(
-            id: $id
-            content: $content
-            description: $description
-            editor: $editor
-            isPrivate: $isPrivate
-            isPublished: $isPublished
-            locale: $locale
-            path: $path
-            publishEndDate: $publishEndDate
-            publishStartDate: $publishStartDate
-            tags: $tags
-            title: $title
-          ) {
+          update(id: $id, content: $content, description: $description, editor: $editor, isPrivate: $isPrivate, isPublished: $isPublished, locale: $locale, path: $path, publishEndDate: $publishEndDate, publishStartDate: $publishStartDate, scriptCss: $scriptCss, scriptJs: $scriptJs, tags: $tags, title: $title) {
             responseResult {
               succeeded
               errorCode
@@ -225,18 +212,7 @@ export class WikiJsClient {
             }
             page {
               id
-              path
-              hash
-              title
-              description
-              isPrivate
-              isPublished
-              content
-              contentType
-              createdAt
               updatedAt
-              editor
-              locale
             }
           }
         }
@@ -268,7 +244,12 @@ export class WikiJsClient {
         throw new Error(`Failed to update page: ${result.responseResult.message}`);
       }
 
-      return result.page;
+      // Return the updates combined with the response data (limited fields)
+      return {
+        ...updates,
+        id: result.page.id,
+        updatedAt: result.page.updatedAt,
+      } as WikiJsPage;
     } catch (error) {
       throw new Error(`Failed to update Wiki.js page: ${error}`);
     }
