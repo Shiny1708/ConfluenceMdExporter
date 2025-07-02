@@ -601,7 +601,7 @@ program
 
       // Clean up temp directory
       try {
-        await fs.rmdir(tempImagesDir, { recursive: true });
+        await fs.rm(tempImagesDir, { recursive: true });
       } catch (error) {
         // Ignore cleanup errors
       }
@@ -755,12 +755,12 @@ program
               }
               
               // Clean up temp directory
-              await fs.rmdir(tempImagesDir, { recursive: true }).catch(() => {});
+              await fs.rm(tempImagesDir, { recursive: true }).catch(() => {});
               
             } catch (error) {
               console.log(`    ❌ Error processing images: ${error}`);
               // Clean up temp directory on error
-              await fs.rmdir(tempImagesDir, { recursive: true }).catch(() => {});
+              await fs.rm(tempImagesDir, { recursive: true }).catch(() => {});
             }
           }
           
